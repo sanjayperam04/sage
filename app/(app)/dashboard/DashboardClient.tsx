@@ -6,16 +6,12 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile, FoodLog } from '@/lib/types'
+import { Plus, Trash2, Droplets, Minus, ArrowRight, ShieldCheck, ChevronRight } from 'lucide-react'
 import styles from './dashboard.module.css'
-
-const MacroPieChart = dynamic(() => import('@/components/MacroPieChart'), {
-  ssr: false,
-  loading: () => <div style={{ height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-muted-48)', fontSize: '13px' }}>Loading chart...</div>,
-})
 
 const WeekChart = dynamic(() => import('@/components/WeekChart'), {
   ssr: false,
-  loading: () => <div style={{ height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--body-muted)', fontSize: '13px' }}>Loading chart...</div>,
+  loading: () => <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontSize: '12px' }}>Loading chart...</div>,
 })
 
 interface Props {
@@ -28,454 +24,403 @@ interface Props {
   userId: string
 }
 
-const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const
+const MEALS = [
+  { key: 'breakfast', label: 'Breakfast' },
+  { key: 'lunch', label: 'Lunch' },
+  { key: 'dinner', label: 'Dinner' },
+  { key: 'snack', label: 'Snacks' },
+] as const
 
 export default function DashboardClient({ profile, todayLogs, totals, waterGlasses, weekData, today, userId }: Props) {
-  const [activeMeal, setActiveMeal] = useState<string>('all')
   const [waterCount, setWaterCount] = useState(waterGlasses)
   const [isAddingWater, setIsAddingWater] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [aiInsight, setAiInsight] = useState<string | null>(null)
+  const [loadingAi, setLoadingAi] = useState(false)
+
   const router = useRouter()
   const supabase = createClient()
 
-  const greeting = getGreeting()
-  const displayName = profile.display_name || 'Friend'
-  const dateStr = new Date(today).toLocaleDateString('en-IN', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  const displayName = profile.display_name || 'Athlete'
+  const dateFormatted = new Date(today + 'T00:00:00').toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric'
   })
 
   // Goals
-  const calGoal = profile.daily_calorie_goal
-  const proteinGoal = profile.daily_protein_goal
-  const carbsGoal = profile.daily_carbs_goal
-  const fatGoal = profile.daily_fat_goal
-  const fiberGoal = profile.daily_fiber_goal
-  const waterGoal = profile.daily_water_goal
+  const calGoal = profile.daily_calorie_goal || 2200
+  const proteinGoal = profile.daily_protein_goal || 160
+  const carbsGoal = profile.daily_carbs_goal || 250
+  const fatGoal = profile.daily_fat_goal || 70
+  const waterGoal = profile.daily_water_goal || 8
 
-  const calPct = Math.min((totals.calories / calGoal) * 100, 100)
-  const calRemaining = Math.max(calGoal - totals.calories, 0)
-
-  // Filter logs by meal type
-  const filteredLogs = activeMeal === 'all'
-    ? todayLogs
-    : todayLogs.filter(l => l.meal_type === activeMeal)
-
-  const logsByMeal = MEAL_TYPES.reduce((acc, type) => {
-    acc[type] = todayLogs.filter(l => l.meal_type === type)
-    return acc
-  }, {} as Record<string, FoodLog[]>)
+  const calRemaining = Math.max(0, calGoal - totals.calories)
+  const calPct = Math.min(100, Math.round((totals.calories / calGoal) * 100))
 
   async function addWater() {
+    if (isAddingWater || !userId) return
     setIsAddingWater(true)
-    const { error } = await supabase.from('water_logs').insert({
+    const newCount = waterCount + 1
+    setWaterCount(newCount)
+    await supabase.from('water_logs').upsert({
       user_id: userId,
       logged_date: today,
-      glasses: 1,
+      glasses: newCount,
       ml_per_glass: 250,
-    })
-    if (!error) setWaterCount(c => c + 1)
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,logged_date' })
     setIsAddingWater(false)
   }
 
   async function removeWater() {
-    if (waterCount === 0) return
-    // Find last entry and remove 1 glass
-    const { data: logs } = await supabase
-      .from('water_logs')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('logged_date', today)
-      .order('created_at', { ascending: false })
-      .limit(1)
-
-    if (logs && logs.length > 0) {
-      if (logs[0].glasses > 1) {
-        await supabase.from('water_logs').update({ glasses: logs[0].glasses - 1 }).eq('id', logs[0].id)
-      } else {
-        await supabase.from('water_logs').delete().eq('id', logs[0].id)
-      }
-      setWaterCount(c => Math.max(c - 1, 0))
-    }
+    if (waterCount <= 0 || isAddingWater || !userId) return
+    setIsAddingWater(true)
+    const newCount = waterCount - 1
+    setWaterCount(newCount)
+    await supabase.from('water_logs').upsert({
+      user_id: userId,
+      logged_date: today,
+      glasses: newCount,
+      ml_per_glass: 250,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,logged_date' })
+    setIsAddingWater(false)
   }
 
   async function deleteLog(id: string) {
     setDeletingId(id)
     await supabase.from('food_logs').delete().eq('id', id)
     router.refresh()
-    setDeletingId(null)
+  }
+
+  async function fetchAiInsight() {
+    setLoadingAi(true)
+    try {
+      const res = await fetch('/api/ai/daily-insight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          logs: todayLogs,
+          totals,
+          goals: { calories: calGoal, protein: proteinGoal, carbs: carbsGoal, fat: fatGoal, water: waterGoal },
+          waterGlasses: waterCount,
+        }),
+      })
+      const data = await res.json()
+      if (data.insight) setAiInsight(data.insight)
+    } catch {
+      setAiInsight('Maintain steady protein distribution across meals to support muscle protein synthesis.')
+    }
+    setLoadingAi(false)
   }
 
   return (
     <div className={styles.page}>
-      {/* ── HERO TILE (Light) ── */}
-      <section className="tile tile-light">
-        <div className="tile-content">
-          <div className={`${styles.heroHeader} animate-fade-up`}>
+      <div className="container">
+
+        {/* ── 1. HEADER (Compact, non-distracting) ── */}
+        <header className={styles.topHeader}>
+          <div>
+            <div className={styles.headerBadge}>
+              <span className={styles.liveDot} />
+              <span>SAGE TELEMETRY</span>
+            </div>
+            <h1 className={styles.headerTitle}>{displayName}</h1>
+            <p className={styles.headerDate}>{dateFormatted}</p>
+          </div>
+
+          <Link href="/log" className={styles.headerQuickLogBtn} id="dashboard-quick-log">
+            <Plus size={15} strokeWidth={2.4} />
+            <span>Log Fuel</span>
+          </Link>
+        </header>
+
+        {/* ── 2. MACROFACTOR-STYLE PRIMARY ENERGY TELEMETRY HUD ── */}
+        <section className={styles.energyHudCard} aria-label="Energy Balance Telemetry">
+          {/* Energy Math Equation: [Goal] - [Food] = [Remaining] */}
+          <div className={styles.equationRow}>
+            <div className={styles.equationCol}>
+              <span className={styles.equationLabel}>DAILY TARGET</span>
+              <span className={`${styles.equationValue} tabular`}>{calGoal.toLocaleString()}</span>
+              <span className={styles.equationUnit}>kcal</span>
+            </div>
+
+            <div className={styles.equationSign}>−</div>
+
+            <div className={styles.equationCol}>
+              <span className={styles.equationLabel}>CONSUMED</span>
+              <span className={`${styles.equationValue} tabular`}>{Math.round(totals.calories).toLocaleString()}</span>
+              <span className={styles.equationUnit}>kcal</span>
+            </div>
+
+            <div className={styles.equationSign}>=</div>
+
+            <div className={`${styles.equationCol} ${styles.equationColHighlight}`}>
+              <span className={styles.equationLabel}>REMAINING</span>
+              <span className={`${styles.equationValue} ${styles.equationValueRemaining} tabular`}>
+                {Math.round(calRemaining).toLocaleString()}
+              </span>
+              <span className={styles.equationUnit}>kcal</span>
+            </div>
+          </div>
+
+          {/* Unified Caloric Track */}
+          <div className={styles.caloricTrack}>
+            <div
+              className={styles.caloricFill}
+              style={{ width: `${calPct}%` }}
+              role="progressbar"
+              aria-valuenow={calPct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            />
+          </div>
+
+          {/* 3-Pillar Macronutrient Summary */}
+          <div className={styles.macroPillarsGrid}>
+            <MacroPillar
+              name="Protein"
+              value={totals.protein_g}
+              goal={proteinGoal}
+              unit="g"
+              barStyle="solid"
+            />
+            <MacroPillar
+              name="Carbs"
+              value={totals.carbs_g}
+              goal={carbsGoal}
+              unit="g"
+              barStyle="medium"
+            />
+            <MacroPillar
+              name="Fats"
+              value={totals.fat_g}
+              goal={fatGoal}
+              unit="g"
+              barStyle="dark"
+            />
+          </div>
+        </section>
+
+        {/* ── 3. COMPACT HYDRATION TELEMETRY (Single Row) ── */}
+        <section className={styles.hydrationStrip} aria-label="Hydration Level">
+          <div className={styles.hydrationInfo}>
+            <Droplets size={16} strokeWidth={2.2} color="#FFFFFF" />
             <div>
-              <h1 className={`t-hero ${styles.greeting}`}>
-                {greeting}, {displayName} 👋
-              </h1>
-              <p className={`t-caption ${styles.dateStr}`}>{dateStr}</p>
-            </div>
-            <Link href="/log" id="hero-log-btn" className="btn-primary hide-mobile">
-              + Log Meal
-            </Link>
-          </div>
-
-          {/* Stats row */}
-          <div className={`${styles.statsGrid} animate-fade-up delay-1`}>
-            {/* Calorie ring */}
-            <div className={styles.calorieCard}>
-              <CalorieRing pct={calPct} consumed={totals.calories} goal={calGoal} />
-              <div className={styles.calorieInfo}>
-                <p className="t-tagline">{Math.round(calRemaining)}</p>
-                <p className="t-caption" style={{ color: 'var(--ink-muted-48)' }}>kcal remaining</p>
-                <div className={styles.calDetails}>
-                  <span className="t-fine">🔥 {Math.round(totals.calories)} eaten</span>
-                  <span className="t-fine">🎯 {calGoal} goal</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Macro bars */}
-            <div className={styles.macroCard}>
-              <h2 className="t-caption-strong" style={{ marginBottom: 'var(--space-md)' }}>Macros Today</h2>
-              <div className={styles.macroBars}>
-                <MacroBar label="Protein" value={totals.protein_g} goal={proteinGoal} unit="g" color="protein" />
-                <MacroBar label="Carbs"   value={totals.carbs_g}   goal={carbsGoal}  unit="g" color="carbs" />
-                <MacroBar label="Fat"     value={totals.fat_g}     goal={fatGoal}    unit="g" color="fat" />
-                <MacroBar label="Fiber"   value={totals.fiber_g}   goal={fiberGoal}  unit="g" color="fiber" />
-              </div>
-              <div style={{ marginTop: 'var(--space-md)' }}>
-                <MacroPieChart protein={totals.protein_g} carbs={totals.carbs_g} fat={totals.fat_g} />
-              </div>
-            </div>
-
-            {/* Water */}
-            <div className={styles.waterCard}>
-              <h2 className="t-caption-strong" style={{ marginBottom: 'var(--space-md)' }}>Hydration</h2>
-              <div className={styles.waterGlasses}>
-                {Array.from({ length: waterGoal }).map((_, i) => (
-                  <button
-                    key={i}
-                    id={`water-glass-${i}`}
-                    onClick={i < waterCount ? removeWater : addWater}
-                    className={`${styles.glassBtn} ${i < waterCount ? styles.glassFull : styles.glassEmpty}`}
-                    title={i < waterCount ? 'Remove glass' : 'Add glass'}
-                    disabled={isAddingWater}
-                  >
-                    💧
-                  </button>
-                ))}
-              </div>
-              <p className="t-caption" style={{ color: 'var(--ink-muted-48)', marginTop: 'var(--space-sm)' }}>
-                {waterCount} / {waterGoal} glasses · {waterCount * 250}ml
-              </p>
-              <div className="progress-bar" style={{ marginTop: 'var(--space-sm)' }}>
-                <div
-                  className="progress-fill progress-fill-water"
-                  style={{ width: `${Math.min((waterCount / waterGoal) * 100, 100)}%` }}
-                />
-              </div>
-              <div className={styles.waterActions}>
-                <button id="water-add-btn" onClick={addWater} disabled={isAddingWater} className="btn-primary" style={{ fontSize: '13px', padding: '8px 16px' }}>
-                  + Add Glass
-                </button>
-                {waterCount > 0 && (
-                  <button id="water-remove-btn" onClick={removeWater} className="btn-secondary" style={{ fontSize: '13px', padding: '8px 16px' }}>
-                    − Remove
-                  </button>
-                )}
-              </div>
+              <span className={styles.hydrationTitle}>Hydration</span>
+              <span className={`${styles.hydrationValues} tabular`}>
+                {(waterCount * 0.25).toFixed(1)}L <span className={styles.hydrationTarget}>/ {(waterGoal * 0.25).toFixed(1)}L</span>
+              </span>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* ── MEALS TILE (Dark) ── */}
-      <section className="tile tile-dark">
-        <div className="tile-content">
-          <div className={styles.mealsHeader}>
-            <h2 className="t-display-md" style={{ color: 'var(--on-dark)' }}>Today&apos;s Meals</h2>
-            <Link href="/log" id="meals-add-btn" className="btn-primary" style={{ fontSize: '13px', padding: '8px 16px' }}>
-              + Add
-            </Link>
-          </div>
-
-          {/* Meal type filter chips */}
-          <div className={styles.mealFilter}>
-            {['all', ...MEAL_TYPES].map(type => (
+          {/* Volumetric Capsules */}
+          <div className={styles.waterCapsules}>
+            {Array.from({ length: Math.max(waterGoal, 8) }).map((_, i) => (
               <button
-                key={type}
-                id={`filter-${type}`}
-                onClick={() => setActiveMeal(type)}
-                className={`chip ${activeMeal === type ? 'chip-active' : ''}`}
-                style={{
-                  background: activeMeal === type ? 'rgba(41,151,255,0.15)' : 'rgba(255,255,255,0.08)',
-                  borderColor: activeMeal === type ? 'var(--primary-on-dark)' : 'rgba(255,255,255,0.15)',
-                  color: activeMeal === type ? 'var(--primary-on-dark)' : 'var(--body-muted)',
-                }}
-              >
-                {getMealEmoji(type)} {capitalize(type)}
-                {type !== 'all' && (
-                  <span style={{ opacity: 0.7, marginLeft: '4px' }}>
-                    ({logsByMeal[type as keyof typeof logsByMeal]?.length || 0})
-                  </span>
-                )}
-              </button>
+                key={i}
+                type="button"
+                onClick={i < waterCount ? removeWater : addWater}
+                className={`${styles.capsule} ${i < waterCount ? styles.capsuleFilled : ''}`}
+                title={i < waterCount ? 'Remove glass' : 'Add glass'}
+                disabled={isAddingWater}
+                aria-label={`Water glass ${i + 1}`}
+              />
             ))}
           </div>
 
-          {/* Log entries */}
-          {filteredLogs.length === 0 ? (
-            <div className={styles.emptyState}>
-              <p style={{ fontSize: '48px' }}>🍽️</p>
-              <p className="t-body-strong" style={{ color: 'var(--on-dark)' }}>Nothing logged yet</p>
-              <p className="t-caption" style={{ color: 'var(--body-muted)' }}>
-                {activeMeal === 'all' ? 'Start tracking your meals for today' : `No ${activeMeal} logged yet`}
-              </p>
-              <Link href="/log" id="empty-log-btn" className="btn-primary" style={{ marginTop: 'var(--space-md)' }}>
-                Log a Meal
-              </Link>
+          <div className={styles.hydrationControls}>
+            <button
+              type="button"
+              onClick={removeWater}
+              disabled={waterCount <= 0 || isAddingWater}
+              className={styles.waterSmallBtn}
+              aria-label="Decrease water"
+            >
+              <Minus size={13} strokeWidth={2.4} />
+            </button>
+            <button
+              type="button"
+              onClick={addWater}
+              disabled={isAddingWater}
+              className={styles.waterPrimaryBtn}
+              aria-label="Add 250ml water"
+            >
+              <Plus size={13} strokeWidth={2.6} />
+              <span>250ml</span>
+            </button>
+          </div>
+        </section>
+
+        {/* ── 4. QUIET METABOLIC TELEMETRY BRIEF (Collapsible / 1-Line AI Status) ── */}
+        <section className={styles.metabolicBriefCard} aria-label="Metabolic Analysis">
+          <div className={styles.briefHeader}>
+            <div className={styles.briefBadge}>
+              <ShieldCheck size={13} strokeWidth={2.2} />
+              <span>METABOLIC STATUS</span>
             </div>
-          ) : (
-            <div className={styles.logList}>
-              {filteredLogs.map((log, i) => (
-                <div key={log.id} className={`${styles.logEntry} animate-fade-up`} style={{ animationDelay: `${i * 40}ms` }}>
-                  <div className={styles.logLeft}>
-                    <div className={`meal-dot meal-dot-${log.meal_type}`} />
+            {!aiInsight && totals.calories > 0 && (
+              <button
+                type="button"
+                onClick={fetchAiInsight}
+                disabled={loadingAi}
+                className={styles.insightTriggerBtn}
+              >
+                {loadingAi ? 'Analyzing...' : 'Deep Audit →'}
+              </button>
+            )}
+          </div>
+          <p className={styles.briefText}>
+            {aiInsight || (
+              totals.calories > 0
+                ? `${Math.round(totals.protein_g)}g of ${proteinGoal}g protein secured (${Math.round((totals.protein_g / proteinGoal) * 100)}%). ${calRemaining > 0 ? `${Math.round(calRemaining)} kcal remaining to satisfy recovery target.` : 'Daily energy equilibrium achieved.'}`
+                : 'System calibrated. Log your post-workout meal or nutrition staple to initiate telemetry tracking.'
+            )}
+          </p>
+        </section>
+
+        {/* ── 5. STRUCTURED MEAL SLOTS (Breakfast · Lunch · Dinner · Snacks) ── */}
+        <section className={styles.mealSlotsSection} aria-label="Today's Meal Records">
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Meal Telemetry</h2>
+            <span className="t-fine tabular" style={{ color: '#888888' }}>
+              {todayLogs.length} {todayLogs.length === 1 ? 'ENTRY' : 'ENTRIES'} TODAY
+            </span>
+          </div>
+
+          <div className={styles.mealCardsGrid}>
+            {MEALS.map(meal => {
+              const mealLogs = todayLogs.filter(l => l.meal_type === meal.key)
+              const mealCalories = mealLogs.reduce((sum, l) => sum + (l.calories || 0), 0)
+              const mealProtein = mealLogs.reduce((sum, l) => sum + (l.protein_g || 0), 0)
+
+              return (
+                <div key={meal.key} className={styles.mealCard}>
+                  {/* Meal Card Header */}
+                  <div className={styles.mealCardHeader}>
                     <div>
-                      <p className="t-body-strong" style={{ color: 'var(--on-dark)' }}>{log.food_name}</p>
-                      <p className="t-caption" style={{ color: 'var(--body-muted)' }}>
-                        {log.quantity_g}g · {capitalize(log.meal_type)}
-                        {log.ai_generated && <span className={styles.aiBadge}>✨ AI</span>}
-                      </p>
+                      <h3 className={styles.mealCardName}>{meal.label}</h3>
+                      <div className={styles.mealCardSubtotals}>
+                        <span className="tabular">{Math.round(mealCalories)} kcal</span>
+                        {mealProtein > 0 && (
+                          <>
+                            <span>·</span>
+                            <span className="tabular" style={{ color: '#FFFFFF', fontWeight: 600 }}>
+                              {Math.round(mealProtein)}g P
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className={styles.logRight}>
-                    <p className="t-body-strong" style={{ color: 'var(--on-dark)' }}>{Math.round(log.calories)} kcal</p>
-                    <p className="t-fine" style={{ color: 'var(--body-muted)' }}>
-                      P:{Math.round(log.protein_g)}g C:{Math.round(log.carbs_g)}g F:{Math.round(log.fat_g)}g
-                    </p>
-                    <button
-                      id={`delete-log-${log.id}`}
-                      onClick={() => deleteLog(log.id)}
-                      disabled={deletingId === log.id}
-                      className={styles.deleteBtn}
-                      title="Delete entry"
+
+                    <Link
+                      href={`/log?meal=${meal.key}`}
+                      className={styles.inlineAddBtn}
+                      aria-label={`Add food to ${meal.label}`}
+                      id={`add-${meal.key}-btn`}
                     >
-                      {deletingId === log.id ? '···' : '×'}
-                    </button>
+                      <Plus size={14} strokeWidth={2.4} />
+                      <span>Add</span>
+                    </Link>
                   </div>
+
+                  {/* Meal Itemized List or Compact Add Prompt */}
+                  {mealLogs.length > 0 ? (
+                    <div className={styles.mealItemsList}>
+                      {mealLogs.map(log => (
+                        <div key={log.id} className={styles.mealItemRow}>
+                          <div className={styles.mealItemInfo}>
+                            <p className={styles.mealItemName}>{log.food_name}</p>
+                            <p className={styles.mealItemMacros}>
+                              <span className="tabular" style={{ color: '#FFFFFF', fontWeight: 600 }}>{Math.round(log.protein_g)}g P</span>
+                              <span>·</span>
+                              <span className="tabular">{Math.round(log.carbs_g)}g C</span>
+                              <span>·</span>
+                              <span className="tabular">{Math.round(log.fat_g)}g F</span>
+                            </p>
+                          </div>
+
+                          <div className={styles.mealItemActions}>
+                            <div className={styles.mealItemCalBox}>
+                              <span className={`${styles.mealItemCals} tabular`}>{Math.round(log.calories)}</span>
+                              <span className={styles.mealItemCalLabel}>kcal</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => deleteLog(log.id)}
+                              disabled={deletingId === log.id}
+                              className={styles.deleteItemBtn}
+                              aria-label={`Delete ${log.food_name}`}
+                            >
+                              <Trash2 size={13} strokeWidth={1.8} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Link href={`/log?meal=${meal.key}`} className={styles.emptyMealSlotPrompt}>
+                      <Plus size={13} strokeWidth={2.2} />
+                      <span>Log {meal.label}</span>
+                    </Link>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+              )
+            })}
+          </div>
+        </section>
 
-      {/* ── AI TILE (Light Parchment) ── */}
-      <section className="tile tile-parchment">
-        <div className="tile-content text-center">
-          <h2 className="t-display-md" style={{ marginBottom: 'var(--space-md)' }}>AI Food Assistant</h2>
-          <p className="t-body" style={{ color: 'var(--ink-muted-48)', marginBottom: 'var(--space-xl)' }}>
-            Describe what you ate in plain language. Groq AI will instantly calculate the nutrition for you.
-          </p>
-          <AIQuickInput userId={userId} today={today} onLogged={() => router.refresh()} />
-        </div>
-      </section>
+        {/* ── 6. 7-DAY INTAKE TRAJECTORY (Compact Collapsible) ── */}
+        <section className={styles.trendSection} aria-label="7-Day History Trend">
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>7-Day Intake Trajectory</h2>
+            <Link href="/history" className={styles.viewHistoryLink}>
+              <span>Full History</span>
+              <ArrowRight size={13} strokeWidth={2} />
+            </Link>
+          </div>
+          <div className={styles.chartWrapper}>
+            <WeekChart data={weekData} calorieGoal={calGoal} />
+          </div>
+        </section>
 
-      {/* ── WEEK CHART TILE (Dark) ── */}
-      <section className="tile tile-dark-2">
-        <div className="tile-content">
-          <h2 className="t-display-md" style={{ color: 'var(--on-dark)', marginBottom: 'var(--space-xl)' }}>
-            Week at a Glance
-          </h2>
-          <WeekChart data={weekData} calorieGoal={calGoal} />
-        </div>
-      </section>
-
-      {/* ── FOOTER ── */}
-      <footer className={styles.footer}>
-        <div className="container">
-          <p className="t-fine" style={{ color: 'var(--ink-muted-48)' }}>
-            Sage · Intelligent Nutrition Architecture · Powered by Groq AI
-          </p>
-        </div>
-      </footer>
-    </div>
-  )
-}
-
-// ── Sub-components ──
-
-function CalorieRing({ pct, consumed, goal }: { pct: number; consumed: number; goal: number }) {
-  const r = 52
-  const circumference = 2 * Math.PI * r
-  const dash = (pct / 100) * circumference
-  const color = pct >= 100 ? '#ff3b30' : pct >= 85 ? '#ff9500' : '#0066cc'
-
-  return (
-    <div className={styles.ringWrapper}>
-      <svg width="140" height="140" viewBox="0 0 140 140">
-        <circle cx="70" cy="70" r={r} fill="none" stroke="var(--hairline)" strokeWidth="10" />
-        <circle
-          cx="70" cy="70" r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth="10"
-          strokeLinecap="round"
-          strokeDasharray={`${dash} ${circumference}`}
-          strokeDashoffset={circumference / 4}
-          style={{ transition: 'stroke-dasharray 800ms cubic-bezier(0.34,1.56,0.64,1), stroke 400ms ease' }}
-        />
-      </svg>
-      <div className={styles.ringCenter}>
-        <span className="t-tagline">{Math.round(consumed)}</span>
-        <span className="t-fine" style={{ color: 'var(--ink-muted-48)' }}>/ {goal} kcal</span>
       </div>
     </div>
   )
 }
 
-function MacroBar({ label, value, goal, unit, color }: {
-  label: string; value: number; goal: number; unit: string; color: string
+// ── Subcomponent: Compact Monochromatic Macro Pillar ──
+
+function MacroPillar({
+  name,
+  value,
+  goal,
+  unit,
+  barStyle,
+}: {
+  name: string
+  value: number
+  goal: number
+  unit: string
+  barStyle: 'solid' | 'medium' | 'dark'
 }) {
-  const pct = Math.min((value / goal) * 100, 100)
-  return (
-    <div className={styles.macroBarRow}>
-      <div className={styles.macroBarLabel}>
-        <span className="t-caption-strong">{label}</span>
-        <span className="t-caption" style={{ color: 'var(--ink-muted-48)' }}>
-          {Math.round(value)}{unit} / {goal}{unit}
-        </span>
-      </div>
-      <div className="progress-bar">
-        <div className={`progress-fill progress-fill-${color}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  )
-}
-
-function AIQuickInput({ userId, today, onLogged }: { userId: string; today: string; onLogged: () => void }) {
-  const [text, setText] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{ name: string; calories: number; protein: number; carbs: number; fat: number } | null>(null)
-  const [mealType, setMealType] = useState<string>('lunch')
-  const [saved, setSaved] = useState(false)
-  const supabase = createClient()
-
-  async function analyzeFood(e: React.FormEvent) {
-    e.preventDefault()
-    if (!text.trim()) return
-    setLoading(true)
-    setResult(null)
-    setSaved(false)
-    try {
-      const res = await fetch('/api/ai/analyze-food', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: text, mealType }),
-      })
-      const data = await res.json()
-      if (data.result) setResult(data.result)
-    } catch { /* silent */ }
-    setLoading(false)
-  }
-
-  async function saveToLog() {
-    if (!result) return
-    setSaved(true)
-    await supabase.from('food_logs').insert({
-      user_id: userId,
-      food_name: result.name,
-      logged_date: today,
-      meal_type: mealType,
-      quantity_g: 100,
-      calories: result.calories,
-      protein_g: result.protein,
-      carbs_g: result.carbs,
-      fat_g: result.fat,
-      fiber_g: 0,
-      ai_generated: true,
-    })
-    setText('')
-    setResult(null)
-    onLogged()
-  }
+  const pct = Math.min(100, Math.round((value / (goal || 1)) * 100))
 
   return (
-    <div className={styles.aiInput}>
-      <form onSubmit={analyzeFood} className={styles.aiForm}>
-        <input
-          id="ai-food-input"
-          type="text"
-          className="input"
-          placeholder='Try: "2 rotis with dal and a glass of milk" ...'
-          value={text}
-          onChange={e => setText(e.target.value)}
-          style={{ flex: 1 }}
+    <div className={styles.macroPillar}>
+      <div className={styles.macroPillarHeader}>
+        <span className={styles.macroPillarName}>{name}</span>
+        <span className={`${styles.macroPillarPct} tabular`}>{pct}%</span>
+      </div>
+      <div className={styles.macroPillarTrack}>
+        <div
+          className={`${styles.macroPillarFill} ${styles[`macroPillarFill_${barStyle}`]}`}
+          style={{ width: `${pct}%` }}
         />
-        <select
-          id="ai-meal-type"
-          className="select"
-          value={mealType}
-          onChange={e => setMealType(e.target.value)}
-          style={{ width: '140px', borderRadius: 'var(--radius-pill)', height: '44px' }}
-        >
-          {MEAL_TYPES.map(t => (
-            <option key={t} value={t}>{capitalize(t)}</option>
-          ))}
-        </select>
-        <button id="ai-analyze-btn" type="submit" className="btn-primary" disabled={loading || !text.trim()}>
-          {loading ? <span className="animate-spin" style={{ display:'inline-block' }}>⟳</span> : '✨ Analyze'}
-        </button>
-      </form>
-
-      {result && (
-        <div className={`${styles.aiResult} animate-fade-up`}>
-          <div className={styles.aiResultHeader}>
-            <div>
-              <p className="t-body-strong">{result.name}</p>
-              <p className="t-caption" style={{ color: 'var(--ink-muted-48)' }}>AI estimated values</p>
-            </div>
-            <p className="t-tagline" style={{ color: 'var(--primary)' }}>{result.calories} kcal</p>
-          </div>
-          <div className={styles.aiResultMacros}>
-            <div className={styles.aiMacroChip}>
-              <span className="t-caption-strong" style={{ color: '#4CAF50' }}>{result.protein}g</span>
-              <span className="t-fine">Protein</span>
-            </div>
-            <div className={styles.aiMacroChip}>
-              <span className="t-caption-strong" style={{ color: '#FF9800' }}>{result.carbs}g</span>
-              <span className="t-fine">Carbs</span>
-            </div>
-            <div className={styles.aiMacroChip}>
-              <span className="t-caption-strong" style={{ color: '#E91E63' }}>{result.fat}g</span>
-              <span className="t-fine">Fat</span>
-            </div>
-          </div>
-          <button id="ai-save-btn" onClick={saveToLog} disabled={saved} className="btn-primary" style={{ marginTop: 'var(--space-sm)' }}>
-            {saved ? '✓ Saved to Log' : '+ Add to Today\'s Log'}
-          </button>
-        </div>
-      )}
+      </div>
+      <div className={styles.macroPillarFooter}>
+        <span className={`${styles.macroPillarCurrent} tabular`}>{Math.round(value)}{unit}</span>
+        <span className={styles.macroPillarTarget}>/ {goal}{unit}</span>
+      </div>
     </div>
   )
-}
-
-function getGreeting() {
-  const h = new Date().getHours()
-  if (h < 12) return 'Good morning'
-  if (h < 17) return 'Good afternoon'
-  return 'Good evening'
-}
-
-function capitalize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1)
-}
-
-function getMealEmoji(type: string) {
-  const e: Record<string, string> = { all: '📋', breakfast: '🌅', lunch: '☀️', dinner: '🌙', snack: '🍎' }
-  return e[type] || '🍽️'
 }

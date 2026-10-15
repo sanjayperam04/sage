@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile, WeightLog } from '@/lib/types'
+import { Target, Scale, Check, TrendingDown, TrendingUp, User, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 import styles from './profile.module.css'
 
 export default function ProfilePage() {
@@ -38,7 +40,7 @@ export default function ProfilePage() {
         .limit(30)
       setWeightLogs(wlogs || [])
     })
-  }, [])
+  }, [supabase])
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault()
@@ -70,128 +72,153 @@ export default function ProfilePage() {
 
   return (
     <div className={styles.page}>
-      {/* Header */}
-      <section className="tile tile-dark">
-        <div className="tile-content">
-          <h1 className="t-display-md" style={{ color: 'var(--on-dark)', marginBottom: 'var(--space-xs)' }}>Profile & Goals</h1>
-          <p className="t-caption" style={{ color: 'var(--body-muted)' }}>Customize your daily nutrition targets</p>
-        </div>
-      </section>
+      <div className="container">
+        {/* Header */}
+        <header style={{ marginBottom: 'var(--space-lg)', paddingTop: 'var(--space-xs)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-xs)' }}>
+            <Link href="/dashboard" style={{ color: 'var(--ink-muted-80)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}>
+              <ArrowLeft size={14} /> Back
+            </Link>
+          </div>
+          <h1 className="t-display-md">Athlete Architecture</h1>
+          <p className="t-caption" style={{ color: 'var(--ink-muted-80)' }}>Calibrate nutrition targets & weight telemetry</p>
+        </header>
 
-      <section className="tile tile-parchment">
-        <div className="tile-content-wide">
-          <div className={styles.twoCol}>
-            {/* Goals form */}
-            <div>
-              <h2 className="t-tagline" style={{ marginBottom: 'var(--space-xl)' }}>Daily Goals</h2>
-              <form onSubmit={saveProfile} className={styles.form}>
-                <div className={styles.field}>
-                  <label htmlFor="profile-name" className="label">Display Name</label>
-                  <input id="profile-name" type="text" className="input-rect" value={profile.display_name || ''} onChange={up('display_name')} placeholder="Your name" />
-                </div>
+        <div className={styles.twoCol}>
+          {/* Goals form */}
+          <section className={styles.cardSection}>
+            <h2 className={styles.sectionTitle}>
+              <Target size={16} strokeWidth={2.4} color="var(--primary)" />
+              Daily Fuel Targets
+            </h2>
 
-                <hr className="divider" />
-                <p className="t-caption-strong" style={{ color: 'var(--ink-muted-48)' }}>NUTRITION GOALS</p>
-
-                <div className={styles.goalGrid}>
-                  {[
-                    { id: 'goal-calories', label: 'Calories (kcal)', key: 'daily_calorie_goal' as keyof Profile, min: 1000, max: 5000, step: 50, color: '#0066cc' },
-                    { id: 'goal-protein', label: 'Protein (g)', key: 'daily_protein_goal' as keyof Profile, min: 20, max: 400, step: 5, color: '#4CAF50' },
-                    { id: 'goal-carbs', label: 'Carbs (g)', key: 'daily_carbs_goal' as keyof Profile, min: 20, max: 600, step: 5, color: '#FF9800' },
-                    { id: 'goal-fat', label: 'Fat (g)', key: 'daily_fat_goal' as keyof Profile, min: 10, max: 300, step: 5, color: '#E91E63' },
-                    { id: 'goal-fiber', label: 'Fiber (g)', key: 'daily_fiber_goal' as keyof Profile, min: 5, max: 80, step: 1, color: '#9C27B0' },
-                    { id: 'goal-water', label: 'Water (glasses)', key: 'daily_water_goal' as keyof Profile, min: 2, max: 20, step: 1, color: '#2196F3' },
-                  ].map(g => (
-                    <div key={g.key} className={styles.field}>
-                      <label htmlFor={g.id} className="label">{g.label}</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                        <input
-                          id={g.id}
-                          type="number"
-                          className="input-rect"
-                          value={(profile[g.key] as number) || 0}
-                          onChange={up(g.key)}
-                          min={g.min}
-                          max={g.max}
-                          step={g.step}
-                          style={{ flex: 1 }}
-                        />
-                        <span className="t-caption-strong" style={{ color: g.color, minWidth: '40px' }}>
-                          {(profile[g.key] as number) || 0}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className={styles.field}>
-                  <label htmlFor="weight-unit" className="label">Weight Unit</label>
-                  <select id="weight-unit" className="select" value={profile.weight_unit || 'kg'} onChange={up('weight_unit')}>
-                    <option value="kg">Kilograms (kg)</option>
-                    <option value="lbs">Pounds (lbs)</option>
-                  </select>
-                </div>
-
-                <button id="profile-save-btn" type="submit" className="btn-primary" disabled={loading}>
-                  {saved ? '✓ Saved!' : loading ? 'Saving...' : 'Save Goals'}
-                </button>
-              </form>
-            </div>
-
-            {/* Weight log */}
-            <div>
-              <h2 className="t-tagline" style={{ marginBottom: 'var(--space-xl)' }}>Weight Log</h2>
-
-              <div className={styles.weightInput}>
+            <form onSubmit={saveProfile} className={styles.form}>
+              <div className={styles.field}>
+                <label htmlFor="profile-name" className="label">Athlete Handle</label>
                 <input
-                  id="weight-value"
-                  type="number"
+                  id="profile-name"
+                  type="text"
                   className="input-rect"
-                  value={newWeight}
-                  onChange={e => setNewWeight(e.target.value)}
-                  placeholder={`Today's weight (${profile.weight_unit || 'kg'})`}
-                  min="20"
-                  max="300"
-                  step="0.1"
-                  style={{ flex: 1 }}
+                  value={profile.display_name || ''}
+                  onChange={up('display_name')}
+                  placeholder="e.g. Sanja"
                 />
-                <button id="weight-log-btn" onClick={logWeight} disabled={weightLoading || !newWeight} className="btn-primary" style={{ whiteSpace: 'nowrap' }}>
-                  {weightLoading ? '...' : 'Log Weight'}
-                </button>
               </div>
 
-              {weightLogs.length === 0 ? (
-                <p className="t-caption" style={{ color: 'var(--ink-muted-48)', marginTop: 'var(--space-lg)' }}>
-                  No weight entries yet. Log your first today!
-                </p>
-              ) : (
-                <div className={styles.weightList}>
-                  <div className={styles.weightTrend}>
-                    {weightLogs.length >= 2 && (
-                      <div className={styles.trendBadge} style={{
-                        background: weightLogs[0].weight_kg < weightLogs[1].weight_kg ? '#f0fff4' : '#fff2f2',
-                        color: weightLogs[0].weight_kg < weightLogs[1].weight_kg ? '#1a7f3c' : '#c00',
-                        border: `1px solid ${weightLogs[0].weight_kg < weightLogs[1].weight_kg ? '#b7f5ca' : '#fcc'}`,
-                      }}>
-                        {weightLogs[0].weight_kg < weightLogs[1].weight_kg ? '▼' : '▲'}{' '}
-                        {Math.abs(weightLogs[0].weight_kg - weightLogs[1].weight_kg).toFixed(1)}{profile.weight_unit || 'kg'} vs last entry
-                      </div>
-                    )}
-                  </div>
-                  {weightLogs.slice(0, 10).map((log) => (
-                    <div key={log.id} className={styles.weightEntry}>
-                      <span className="t-caption" style={{ color: 'var(--ink-muted-48)' }}>
-                        {new Date(log.logged_date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+              <div className="divider" />
+              <p className="t-fine" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Macronutrient Directives</p>
+
+              <div className={styles.goalGrid}>
+                {[
+                  { id: 'goal-calories', label: 'Calories', key: 'daily_calorie_goal' as keyof Profile, min: 1000, max: 6000, step: 50, unit: 'kcal' },
+                  { id: 'goal-protein', label: 'Protein', key: 'daily_protein_goal' as keyof Profile, min: 20, max: 400, step: 5, unit: 'g' },
+                  { id: 'goal-carbs', label: 'Carbohydrates', key: 'daily_carbs_goal' as keyof Profile, min: 20, max: 700, step: 5, unit: 'g' },
+                  { id: 'goal-fat', label: 'Fats', key: 'daily_fat_goal' as keyof Profile, min: 10, max: 300, step: 5, unit: 'g' },
+                  { id: 'goal-fiber', label: 'Fiber', key: 'daily_fiber_goal' as keyof Profile, min: 5, max: 80, step: 1, unit: 'g' },
+                  { id: 'goal-water', label: 'Hydration Target', key: 'daily_water_goal' as keyof Profile, min: 2, max: 20, step: 1, unit: 'glasses' },
+                ].map(g => (
+                  <div key={g.key} className={styles.field}>
+                    <label htmlFor={g.id} className="label">{g.label}</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        id={g.id}
+                        type="number"
+                        className="input-rect tabular"
+                        value={(profile[g.key] as number) || 0}
+                        onChange={up(g.key)}
+                        min={g.min}
+                        max={g.max}
+                        step={g.step}
+                        style={{ flex: 1 }}
+                      />
+                      <span className="tabular" style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '13px', minWidth: '40px' }}>
+                        {(profile[g.key] as number) || 0}{g.unit}
                       </span>
-                      <span className="t-body-strong">{log.weight_kg} {profile.weight_unit || 'kg'}</span>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
+
+              <div className={styles.field}>
+                <label htmlFor="weight-unit" className="label">Unit of Measure</label>
+                <select id="weight-unit" className="select" value={profile.weight_unit || 'kg'} onChange={up('weight_unit')}>
+                  <option value="kg">Metric (Kilograms - kg)</option>
+                  <option value="lbs">Imperial (Pounds - lbs)</option>
+                </select>
+              </div>
+
+              <button id="profile-save-btn" type="submit" className="btn-primary" disabled={loading} style={{ width: '100%' }}>
+                {saved ? '✓ Targets Locked' : loading ? 'Saving...' : 'Lock In Targets'}
+              </button>
+            </form>
+          </section>
+
+          {/* Weight Log */}
+          <section className={styles.cardSection}>
+            <h2 className={styles.sectionTitle}>
+              <Scale size={16} strokeWidth={2.4} color="var(--primary)" />
+              Bodyweight Log
+            </h2>
+
+            <div className={styles.weightInputRow}>
+              <input
+                id="weight-value"
+                type="number"
+                className="input-rect tabular"
+                value={newWeight}
+                onChange={e => setNewWeight(e.target.value)}
+                placeholder={`Today's weight (${profile.weight_unit || 'kg'})`}
+                min="20"
+                max="300"
+                step="0.1"
+                style={{ flex: 1 }}
+              />
+              <button
+                id="weight-log-btn"
+                onClick={logWeight}
+                disabled={weightLoading || !newWeight}
+                className="btn-primary"
+                style={{ whiteSpace: 'nowrap', minHeight: '46px' }}
+              >
+                {weightLoading ? '...' : 'Log'}
+              </button>
             </div>
-          </div>
+
+            {weightLogs.length === 0 ? (
+              <p className="t-caption" style={{ color: 'var(--ink-muted-48)', textAlign: 'center', padding: 'var(--space-lg) 0' }}>
+                No weight logs yet. Record your morning weight to track trend delta.
+              </p>
+            ) : (
+              <div className={styles.weightList}>
+                {weightLogs.length >= 2 && (
+                  <div
+                    className={styles.trendBadge}
+                    style={{
+                      background: weightLogs[0].weight_kg < weightLogs[1].weight_kg ? 'rgba(48, 209, 88, 0.12)' : 'rgba(255, 69, 58, 0.12)',
+                      color: weightLogs[0].weight_kg < weightLogs[1].weight_kg ? 'var(--primary)' : 'var(--macro-fat)',
+                      border: `1px solid ${weightLogs[0].weight_kg < weightLogs[1].weight_kg ? 'rgba(48, 209, 88, 0.25)' : 'rgba(255, 69, 58, 0.25)'}`,
+                    }}
+                  >
+                    {weightLogs[0].weight_kg < weightLogs[1].weight_kg ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
+                    <span>
+                      {Math.abs(weightLogs[0].weight_kg - weightLogs[1].weight_kg).toFixed(1)} {profile.weight_unit || 'kg'} vs previous check-in
+                    </span>
+                  </div>
+                )}
+
+                {weightLogs.slice(0, 10).map((log) => (
+                  <div key={log.id} className={styles.weightEntry}>
+                    <span className="t-caption" style={{ color: 'var(--ink-muted-80)' }}>
+                      {new Date(log.logged_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                    </span>
+                    <span className="t-body-strong tabular">{log.weight_kg} {profile.weight_unit || 'kg'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
-      </section>
+      </div>
     </div>
   )
 }

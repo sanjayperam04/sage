@@ -24,7 +24,7 @@ export default function LoginPage() {
     setMessage(null)
 
     if (isSignUp) {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -33,8 +33,11 @@ export default function LoginPage() {
       })
       if (error) {
         setError(error.message)
+      } else if (data.session) {
+        router.push('/dashboard')
+        router.refresh()
       } else {
-        setMessage('Account created! Check your email to confirm, then sign in.')
+        setMessage('Account created! Please sign in.')
         setIsSignUp(false)
       }
     } else {
@@ -51,71 +54,71 @@ export default function LoginPage() {
 
   return (
     <div className={styles.page}>
-      {/* Background gradient blobs */}
-      <div className={styles.blob1} />
-      <div className={styles.blob2} />
+      <div className={styles.ambientGlow} />
 
       <div className={styles.container}>
-        {/* Logo / Brand */}
+        {/* Brand Header */}
         <div className={styles.brand}>
           <div className={styles.logoMark}>
-            <svg width="40" height="40" viewBox="0 0 32 32" fill="none">
-              <defs>
-                <linearGradient id="sageGradLg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#30D158" />
-                  <stop offset="1" stopColor="#107C41" />
-                </linearGradient>
-              </defs>
-              <circle cx="16" cy="16" r="16" fill="url(#sageGradLg)" />
-              <path d="M16 6.5C16 6.5 24 11 24 18.5C24 22.642 20.642 26 16.5 26C12.358 26 9 22.642 9 18.5C9 11 16 6.5 16 6.5Z" fill="white" fillOpacity="0.95" />
-              <path d="M16 10.5V22.5M16 16.5L19.5 13M16 19L12.5 15.5" stroke="#107C41" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+              <path d="M16 4C16 4 25 9.5 25 18C25 22.97 20.97 27 16 27C11.03 27 7 22.97 7 18C7 9.5 16 4 16 4Z" fill="#FFFFFF" />
+              <path d="M16 9V23M16 15L20.5 11.5M16 18L11.5 14.5" stroke="#000000" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
           <h1 className={styles.brandName}>Sage</h1>
-          <p className={styles.brandTagline}>Intelligent Nutrition & Macro Architecture</p>
+          <p className={styles.brandTagline}>Precision Athletic Nutrition</p>
         </div>
 
-        {/* Auth card */}
+        {/* Minimal Auth Card */}
         <div className={styles.card}>
-          <h2 className={styles.cardTitle}>
-            {isSignUp ? 'Create your account' : 'Welcome back'}
-          </h2>
-          <p className={styles.cardSubtitle}>
-            {isSignUp
-              ? 'Start tracking your nutrition journey today'
-              : 'Sign in to your account to continue'
-            }
-          </p>
+          <div className={styles.segmentedControl}>
+            <button
+              type="button"
+              id="auth-tab-signin"
+              onClick={() => { setIsSignUp(false); setError(null); setMessage(null) }}
+              className={`${styles.segmentBtn} ${!isSignUp ? styles.segmentActive : ''}`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              id="auth-tab-signup"
+              onClick={() => { setIsSignUp(true); setError(null); setMessage(null) }}
+              className={`${styles.segmentBtn} ${isSignUp ? styles.segmentActive : ''}`}
+            >
+              Create Account
+            </button>
+          </div>
 
           {error && (
             <div className={styles.errorBanner} role="alert">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M8 5v3.5M8 10.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M8 5v3.5M8 10.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
-              {error}
+              <span>{error}</span>
             </div>
           )}
 
           {message && (
             <div className={styles.successBanner} role="status">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              {message}
+              <span>{message}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className={styles.form}>
             {isSignUp && (
               <div className={styles.field}>
-                <label htmlFor="display-name" className="label">Your Name</label>
+                <label htmlFor="display-name" className="label">Name</label>
                 <input
                   id="display-name"
                   type="text"
                   className="input-rect"
-                  placeholder="e.g. Sanja"
+                  placeholder="Your name"
                   value={displayName}
                   onChange={e => setDisplayName(e.target.value)}
                   autoComplete="name"
@@ -129,11 +132,12 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 className="input-rect"
-                placeholder="you@example.com"
+                placeholder="athlete@sage.fit"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
                 autoComplete="email"
+                inputMode="email"
               />
             </div>
 
@@ -143,11 +147,11 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 className="input-rect"
-                placeholder={isSignUp ? 'At least 8 characters' : '••••••••'}
+                placeholder={isSignUp ? '8+ characters' : '••••••••'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
-                minLength={isSignUp ? 8 : 1}
+                minLength={6}
                 autoComplete={isSignUp ? 'new-password' : 'current-password'}
               />
             </div>
@@ -155,48 +159,17 @@ export default function LoginPage() {
             <button
               id="auth-submit-btn"
               type="submit"
-              className="btn-primary"
+              className={`btn-primary ${styles.submitBtn}`}
               disabled={loading}
-              style={{ width: '100%', marginTop: '8px', height: '48px', fontSize: '17px' }}
             >
-              {loading ? (
-                <span className={styles.loadingDots}>
-                  <span />
-                  <span />
-                  <span />
-                </span>
-              ) : (
-                isSignUp ? 'Create Account' : 'Sign In'
-              )}
+              {loading ? 'Authenticating...' : isSignUp ? 'Begin Journey' : 'Enter Sage'}
             </button>
           </form>
-
-          <p className={styles.switchMode}>
-            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-            <button
-              id="auth-toggle-btn"
-              onClick={() => { setIsSignUp(!isSignUp); setError(null); setMessage(null) }}
-              className={styles.switchBtn}
-            >
-              {isSignUp ? 'Sign In' : 'Create one'}
-            </button>
-          </p>
         </div>
 
-        {/* Features preview */}
-        <div className={styles.features}>
-          {[
-            { icon: '🥗', label: 'Calorie & Macro Tracking' },
-            { icon: '💧', label: 'Water Intake' },
-            { icon: '🤖', label: 'Groq AI Food Analysis' },
-            { icon: '📊', label: 'Weekly Insights' },
-          ].map((f, i) => (
-            <div key={f.label} className={styles.featureChip} style={{ animationDelay: `${i * 60}ms` }}>
-              <span>{f.icon}</span>
-              <span className="t-caption">{f.label}</span>
-            </div>
-          ))}
-        </div>
+        <p className={styles.footerNote}>
+          Encrypted & Private · Athlete Sovereign Data
+        </p>
       </div>
     </div>
   )

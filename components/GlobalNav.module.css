@@ -1,153 +1,242 @@
+/* ============================================================
+   GLOBAL NAVIGATION (Desktop Floating Glass + Mobile iOS Tab Bar)
+   ============================================================ */
+
 .nav {
   position: sticky;
   top: 0;
   z-index: 100;
-  background-color: var(--surface-black);
   width: 100%;
+  pointer-events: none;
 }
 
 .inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 44px;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 var(--space-lg);
+  height: 56px;
+  max-width: 1120px;
+  margin: var(--space-xs) auto 0;
+  padding: 0 var(--space-md);
+  pointer-events: auto;
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 10px;
   color: var(--on-dark);
   text-decoration: none;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.224px;
-  white-space: nowrap;
-  flex-shrink: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: rgba(18, 18, 20, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--hairline);
+  transition: transform var(--motion-fast);
 }
 
-.logo:hover { opacity: 0.85; }
+.logo:active {
+  transform: scale(0.96);
+}
 
-.links {
+.desktopNavPill {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
+  gap: 4px;
   list-style: none;
-  margin: 0 auto;
-  padding: 0;
+  padding: 4px 6px;
+  background: rgba(18, 18, 20, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-subtle);
 }
 
-.link {
-  font-size: 12px;
-  font-weight: 400;
-  letter-spacing: -0.12px;
-  color: rgba(255,255,255,0.72);
+.desktopLink {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink-muted-80);
   text-decoration: none;
-  padding: 4px 0;
-  position: relative;
-  transition: color var(--transition-fast);
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  transition: all var(--motion-fast);
 }
 
-.link::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 0;
-  height: 1px;
-  background: var(--primary-on-dark);
-  transition: width var(--transition-base);
-}
-
-.link:hover { color: var(--on-dark); }
-.link:hover::after { width: 100%; }
-
-.linkActive {
+.desktopLink:hover {
   color: var(--on-dark);
 }
 
-.linkActive::after {
-  width: 100%;
-  background: var(--primary-on-dark);
+.desktopLinkActive {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--on-dark);
+  font-weight: 600;
 }
 
 .actions {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  flex-shrink: 0;
+  gap: var(--space-xs);
 }
 
-.signOut {
+.logQuickBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #FFFFFF;
+  color: #000000;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 2px 10px rgba(255, 255, 255, 0.15);
+  transition: transform var(--motion-fast);
+}
+
+.logQuickBtn:active {
+  transform: scale(0.96);
+}
+
+.signOutBtn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: none;
-  border: none;
-  color: rgba(255,255,255,0.5);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: color var(--transition-fast), background-color var(--transition-fast);
+  width: 36px;
+  height: 36px;
+  background: rgba(18, 18, 20, 0.7);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-full);
+  color: var(--ink-muted-80);
+  transition: all var(--motion-fast);
 }
 
-.signOut:hover {
+.signOutBtn:hover {
   color: var(--on-dark);
-  background-color: rgba(255,255,255,0.1);
+  border-color: var(--hairline-strong);
 }
 
-/* Mobile bottom nav */
-.mobileNav {
+/* ============================================================
+   MOBILE BOTTOM TAB BAR (iOS NATIVE FEEL)
+   ============================================================ */
+.mobileTabBar {
   display: none;
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: rgba(18,18,18,0.92);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-top: 1px solid rgba(255,255,255,0.1);
-  list-style: none;
-  padding: 0;
-  z-index: 200;
-  padding-bottom: env(safe-area-inset-bottom);
+  height: calc(var(--tab-bar-height) + env(safe-area-inset-bottom, 16px));
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+  background: rgba(10, 10, 12, 0.88);
+  backdrop-filter: blur(30px) saturate(190%);
+  -webkit-backdrop-filter: blur(30px) saturate(190%);
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  z-index: 999;
+  pointer-events: auto;
 }
 
-.mobileLink {
+.mobileTabList {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: 100%;
+  list-style: none;
+  padding: 0 4px;
+}
+
+.mobileTabItem {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.mobileTabLink {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 3px;
-  padding: 8px 4px;
-  color: rgba(255,255,255,0.5);
+  width: 100%;
+  padding: 6px 0;
+  color: var(--ink-muted-48);
   text-decoration: none;
+  transition: all var(--motion-fast);
+}
+
+.mobileTabLinkActive {
+  color: #FFFFFF !important;
+}
+
+.mobileTabIconWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.mobileTabLabel {
   font-size: 10px;
-  letter-spacing: 0;
-  transition: color var(--transition-fast);
-  min-width: 48px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
-.mobileLink:hover, .mobileLinkActive {
-  color: var(--primary-on-dark);
+.mobileTabLinkActive .mobileTabLabel {
+  font-weight: 600;
 }
 
-@media (max-width: 833px) {
-  .links { display: none; }
-  .actions { display: none; }
+/* Center Log Tab: Highlighted Athletic Pill */
+.centerLogBtn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-top: -14px;
+}
 
-  .mobileNav {
-    display: flex;
-    justify-content: space-around;
-    align-items: stretch;
+.centerLogIconCircle {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: #FFFFFF;
+  color: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 18px rgba(255, 255, 255, 0.25);
+  transition: transform var(--motion-fast);
+}
+
+.centerLogBtn:active .centerLogIconCircle {
+  transform: scale(0.92);
+}
+
+@media (max-width: 840px) {
+  .inner {
+    height: 48px;
+    padding: 0 var(--space-md);
   }
 
-  /* Compensate for bottom nav */
-  :global(main) {
-    padding-bottom: 80px;
+  .desktopNavPill {
+    display: none;
+  }
+
+  .logQuickBtn {
+    display: none;
+  }
+
+  .mobileTabBar {
+    display: block;
   }
 }

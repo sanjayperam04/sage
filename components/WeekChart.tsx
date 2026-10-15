@@ -13,49 +13,49 @@ export function WeekChart({ data, calorieGoal }: WeekChartProps): React.JSX.Elem
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--body-muted)' }}>
-          <span style={{ width: '12px', height: '12px', borderRadius: '2px', background: '#0066cc', display: 'inline-block' }} />
-          Calories
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--ink-muted-80)' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FFFFFF', display: 'inline-block' }} />
+          Daily Calories
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--body-muted)' }}>
-          <span style={{ width: '12px', height: '2px', background: 'rgba(255,165,0,0.6)', display: 'inline-block', borderTop: '2px dashed rgba(255,165,0,0.6)' }} />
-          Goal ({calorieGoal} kcal)
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--ink-muted-80)' }}>
+          <span style={{ width: '12px', height: '2px', background: 'rgba(255, 255, 255, 0.45)', display: 'inline-block' }} />
+          Target ({calorieGoal} kcal)
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={240}>
-        <BarChart data={data} margin={{ top: 8, right: 0, left: -16, bottom: 0 }} barCategoryGap="30%">
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={data} margin={{ top: 8, right: 0, left: -18, bottom: 0 }} barCategoryGap="28%">
           <XAxis
             dataKey="label"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
+            tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 11 }}
           />
           <YAxis
             axisLine={false}
             tickLine={false}
-            tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
+            tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }}
             tickFormatter={v => v === 0 ? '' : `${v}`}
           />
           <Tooltip
             cursor={{ fill: 'rgba(255,255,255,0.04)' }}
             contentStyle={{
-              backgroundColor: '#1d1d1f',
-              border: '1px solid rgba(255,255,255,0.1)',
+              backgroundColor: '#0E0E0E',
+              border: '1px solid rgba(255,255,255,0.15)',
               borderRadius: '12px',
-              fontSize: '13px',
+              fontSize: '12px',
               color: '#fff',
             }}
             formatter={(value: any) => [`${Math.round(Number(value) || 0)} kcal`]}
           />
-          <ReferenceLine y={calorieGoal} stroke="rgba(255,165,0,0.5)" strokeDasharray="4 4" />
-          <Bar dataKey="calories" radius={[6, 6, 0, 0]} maxBarSize={48}>
+          <ReferenceLine y={calorieGoal} stroke="rgba(255, 255, 255, 0.45)" strokeDasharray="3 3" />
+          <Bar dataKey="calories" radius={[4, 4, 0, 0]} maxBarSize={36}>
             {data.map((entry) => (
               <Cell
                 key={entry.date}
-                fill={entry.date === today ? '#2997ff' : entry.calories >= calorieGoal ? '#34C759' : '#0066cc'}
-                opacity={entry.date === today ? 1 : 0.75}
+                fill={entry.date === today ? '#FFFFFF' : entry.calories >= calorieGoal ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.25)'}
+                opacity={entry.date === today ? 1 : 0.85}
               />
             ))}
           </Bar>

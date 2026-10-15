@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import type { Food } from '@/lib/types'
+import { Sparkles, Edit3, Search, Plus, Check, AlertCircle, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 import styles from './log.module.css'
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const
@@ -20,66 +21,62 @@ interface AIResult {
   breakdown?: { item: string; portion: string; calories: number; protein: number }[]
 }
 
+const GYM_PRESETS = [
+  '2 scoops whey protein with 300ml whole milk',
+  '200g grilled chicken breast with 1 cup white rice',
+  '4 boiled eggs with 2 slices of whole wheat toast',
+  '150g paneer bhurji with 2 rotis and 1 bowl dal',
+  '1 bowl oatmeal with 1 banana and 1 tbsp peanut butter',
+]
+
 export default function LogPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>Loading logger...</div>}>
+      <LogContent />
+    </Suspense>
+  )
+}
+
+function LogContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const today = new Date().toISOString().split('T')[0]
 
-  // Mode
-  const [mode, setMode] = useState<'ai' | 'manual' | 'database'>('ai')
+  const paramMeal = searchParams.get('meal') as typeof MEAL_TYPES[number] | null
+  const initialMeal = paramMeal && MEAL_TYPES.includes(paramMeal) ? paramMeal : 'lunch'
 
-  // Shared
-  const [mealType, setMealType] = useState<string>('lunch')
+  const [mode, setMode] = useState<'ai' | 'manual' | 'database'>('ai')
+  const [mealType, setMealType] = useState<typeof MEAL_TYPES[number]>(initialMeal)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [userId, setUserId] = useState<string>('')
 
-  // AI mode
+  // AI state
   const [aiText, setAiText] = useState('')
   const [aiResult, setAiResult] = useState<AIResult | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
 
-  // Manual mode
+  // Manual state
   const [manualForm, setManualForm] = useState({
-    name: '', quantity: '100', calories: '', protein: '', carbs: '', fat: '', fiber: ''
+    name: '',
+    quantity: '100',
+    calories: '',
+    protein: '',
+    carbs: '',
+    fat: '',
+    fiber: '',
   })
-
-  // Database mode
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<Food[]>([])
-  const [selectedFood, setSelectedFood] = useState<Food | null>(null)
-  const [servingGrams, setServingGrams] = useState('100')
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) setUserId(user.id)
     })
-    // Set default meal type based on time
-    const h = new Date().getHours()
-    if (h < 10) setMealType('breakfast')
-    else if (h < 14) setMealType('lunch')
-    else if (h < 20) setMealType('dinner')
-    else setMealType('snack')
-  }, [])
-
-  const searchFoods = useCallback(async (q: string) => {
-    if (q.length < 2) { setSearchResults([]); return }
-    const { data } = await supabase
-      .from('foods')
-      .select('*')
-      .ilike('name', `%${q}%`)
-      .limit(12)
-    setSearchResults(data || [])
   }, [supabase])
 
-  useEffect(() => {
-    const t = setTimeout(() => searchFoods(searchQuery), 300)
-    return () => clearTimeout(t)
-  }, [searchQuery, searchFoods])
-
-  async function analyzeWithAI(e: React.FormEvent) {
-    e.preventDefault()
+  async function analyzeWithAI(e?: React.FormEvent) {
+    if (e) e.preventDefault()
     if (!aiText.trim()) return
     setAiLoading(true)
     setAiResult(null)
@@ -97,7 +94,7 @@ export default function LogPage() {
         setAiResult(data.result)
       }
     } catch {
-      setAiError('Could not connect to AI service. Please try again.')
+      setAiError('Could not connect to Sage AI service. Please try again.')
     }
     setAiLoading(false)
   }
@@ -118,7 +115,10 @@ export default function LogPage() {
       fiber_g: aiResult.fiber,
       ai_generated: true,
     })
-    if (!error) { setSuccess(true); setTimeout(() => router.push('/dashboard'), 1200) }
+    if (!error) {
+      setSuccess(true)
+      setTimeout(() => router.push('/dashboard'), 1000)
+    }
     setLoading(false)
   }
 
@@ -140,366 +140,302 @@ export default function LogPage() {
       fiber_g: parseFloat(manualForm.fiber) || 0,
       ai_generated: false,
     })
-    if (!error) { setSuccess(true); setTimeout(() => router.push('/dashboard'), 1200) }
+    if (!error) {
+      setSuccess(true)
+      setTimeout(() => router.push('/dashboard'), 1000)
+    }
     setLoading(false)
-  }
-
-  async function saveDatabaseEntry() {
-    if (!selectedFood || !userId) return
-    setLoading(true)
-    const qty = parseFloat(servingGrams) || selectedFood.default_serving_g
-    const ratio = qty / 100
-    const { error } = await supabase.from('food_logs').insert({
-      user_id: userId,
-      food_id: selectedFood.id,
-      food_name: selectedFood.name,
-      logged_date: today,
-      meal_type: mealType,
-      quantity_g: qty,
-      calories: selectedFood.calories_per_100g * ratio,
-      protein_g: selectedFood.protein_per_100g * ratio,
-      carbs_g: selectedFood.carbs_per_100g * ratio,
-      fat_g: selectedFood.fat_per_100g * ratio,
-      fiber_g: selectedFood.fiber_per_100g * ratio,
-      ai_generated: false,
-    })
-    if (!error) { setSuccess(true); setTimeout(() => router.push('/dashboard'), 1200) }
-    setLoading(false)
-  }
-
-  const dbCalories = selectedFood
-    ? Math.round(selectedFood.calories_per_100g * (parseFloat(servingGrams) || 100) / 100)
-    : 0
-
-  if (success) {
-    return (
-      <div className={styles.successPage}>
-        <div className={styles.successIcon}>✅</div>
-        <h1 className="t-display-md">Logged!</h1>
-        <p className="t-body" style={{ color: 'var(--ink-muted-48)' }}>Redirecting to your dashboard...</p>
-      </div>
-    )
   }
 
   return (
     <div className={styles.page}>
-      {/* Header tile */}
-      <section className="tile tile-dark">
-        <div className="tile-content">
-          <h1 className="t-display-md" style={{ color: 'var(--on-dark)', marginBottom: 'var(--space-sm)' }}>
-            Log a Meal
-          </h1>
-          <p className="t-caption" style={{ color: 'var(--body-muted)', marginBottom: 'var(--space-xl)' }}>
-            {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
-          </p>
-
-          {/* Meal type */}
-          <div className={styles.mealTypeRow}>
-            <label className="label label-on-dark">Meal</label>
-            <div className={styles.mealChips}>
-              {MEAL_TYPES.map(type => (
-                <button
-                  key={type}
-                  id={`meal-type-${type}`}
-                  onClick={() => setMealType(type)}
-                  className={`chip ${mealType === type ? 'chip-active' : ''}`}
-                  style={{
-                    background: mealType === type ? 'rgba(41,151,255,0.15)' : 'rgba(255,255,255,0.08)',
-                    borderColor: mealType === type ? 'var(--primary-on-dark)' : 'rgba(255,255,255,0.15)',
-                    color: mealType === type ? 'var(--primary-on-dark)' : 'var(--body-muted)',
-                  }}
-                >
-                  {getMealEmoji(type)} {capitalize(type)}
-                </button>
-              ))}
-            </div>
+      {success && (
+        <div className={styles.successOverlay}>
+          <div className={styles.successCircle}>
+            <Check size={32} strokeWidth={3} />
           </div>
-
-          {/* Mode switcher */}
-          <div className={styles.modeSwitcher}>
-            {(['ai', 'database', 'manual'] as const).map(m => (
-              <button
-                key={m}
-                id={`mode-${m}`}
-                onClick={() => setMode(m)}
-                className={styles.modeBtn}
-                style={{
-                  background: mode === m ? 'var(--canvas)' : 'transparent',
-                  color: mode === m ? 'var(--ink)' : 'var(--body-muted)',
-                }}
-              >
-                {m === 'ai' && '✨ AI'}
-                {m === 'database' && '🔍 Database'}
-                {m === 'manual' && '✏️ Manual'}
-              </button>
-            ))}
-          </div>
+          <p className="t-tagline">Meal Secured</p>
         </div>
-      </section>
+      )}
 
-      {/* Input tile */}
-      <section className="tile tile-parchment" style={{ minHeight: '60vh' }}>
-        <div className="tile-content">
+      <div className="container">
+        {/* Header */}
+        <header className={styles.header}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-xs)' }}>
+            <Link href="/dashboard" style={{ color: 'var(--ink-muted-80)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}>
+              <ArrowLeft size={14} /> Back
+            </Link>
+          </div>
+          <h1 className={styles.title}>Fuel Entry</h1>
+          <p className={styles.subtitle}>Log recovery nutrition with precision</p>
+        </header>
 
-          {/* ── AI MODE ── */}
-          {mode === 'ai' && (
-            <div className={styles.modePanel}>
-              <h2 className="t-tagline" style={{ marginBottom: 'var(--space-md)' }}>Describe what you ate</h2>
-              <p className="t-caption" style={{ color: 'var(--ink-muted-48)', marginBottom: 'var(--space-xl)' }}>
-                Write naturally — "2 rotis with dal", "bowl of oatmeal with banana", "grilled chicken 200g"
-              </p>
-              <form onSubmit={analyzeWithAI} className={styles.aiInputRow}>
-                <textarea
-                  id="ai-description"
-                  className={styles.aiTextarea}
-                  placeholder='e.g. "2 rotis with dal tadka and a glass of skimmed milk"'
-                  value={aiText}
-                  onChange={e => setAiText(e.target.value)}
-                  rows={3}
-                />
-                <button id="ai-analyze-submit" type="submit" className="btn-primary" disabled={aiLoading || !aiText.trim()} style={{ alignSelf: 'flex-end' }}>
-                  {aiLoading ? '⟳ Analyzing...' : '✨ Analyze with AI'}
-                </button>
-              </form>
+        {/* Meal Type Pill Selector */}
+        <div className={styles.mealTypeSelector}>
+          {MEAL_TYPES.map(type => (
+            <button
+              key={type}
+              id={`meal-type-${type}`}
+              onClick={() => setMealType(type)}
+              className={`${styles.mealTypeBtn} ${mealType === type ? styles.mealTypeBtnActive : ''}`}
+            >
+              <span style={{ textTransform: 'capitalize' }}>{type}</span>
+            </button>
+          ))}
+        </div>
 
-              {aiError && (
-                <div style={{
-                  padding: 'var(--space-md) var(--space-lg)',
-                  background: 'rgba(255, 59, 48, 0.08)',
-                  border: '1px solid rgba(255, 59, 48, 0.25)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--accent-red)',
-                  fontSize: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--space-sm)',
-                }}>
-                  <span>⚠️</span>
-                  <span>{aiError}</span>
-                </div>
-              )}
+        {/* Segmented Mode Switcher */}
+        <div className={styles.modeSegmentedBar}>
+          <button
+            id="mode-ai"
+            onClick={() => setMode('ai')}
+            className={`${styles.modeSegmentBtn} ${mode === 'ai' ? styles.modeSegmentBtnActive : ''}`}
+          >
+            <Sparkles size={14} strokeWidth={2.2} />
+            <span>AI Parser</span>
+          </button>
+          <button
+            id="mode-manual"
+            onClick={() => setMode('manual')}
+            className={`${styles.modeSegmentBtn} ${mode === 'manual' ? styles.modeSegmentBtnActive : ''}`}
+          >
+            <Edit3 size={14} strokeWidth={2.2} />
+            <span>Manual</span>
+          </button>
+          <button
+            id="mode-database"
+            onClick={() => setMode('database')}
+            className={`${styles.modeSegmentBtn} ${mode === 'database' ? styles.modeSegmentBtnActive : ''}`}
+          >
+            <Search size={14} strokeWidth={2.2} />
+            <span>Foods</span>
+          </button>
+        </div>
 
-              {aiLoading && (
-                <div className={styles.aiLoading}>
-                  <div className={styles.aiLoadingDot} /><div className={styles.aiLoadingDot} /><div className={styles.aiLoadingDot} />
-                  <span className="t-caption" style={{ color: 'var(--ink-muted-48)' }}>Sage AI is calculating precise macronutrients...</span>
-                </div>
-              )}
-
-              {aiResult && (
-                <div className={`${styles.resultCard} animate-fade-up`}>
-                  <div className={styles.resultHeader}>
-                    <div>
-                      <h3 className="t-body-strong">{aiResult.name}</h3>
-                      <p className="t-caption" style={{ color: 'var(--ink-muted-48)' }}>
-                        {aiResult.serving_description}
-                        {aiResult.confidence !== 'high' && (
-                          <span className={styles.confidenceBadge} style={{ background: aiResult.confidence === 'medium' ? '#fff3cd' : '#ffe5e5', color: aiResult.confidence === 'medium' ? '#856404' : '#c00' }}>
-                            {aiResult.confidence} confidence
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <p className="t-tagline" style={{ color: 'var(--primary)' }}>{aiResult.calories}</p>
-                      <p className="t-fine" style={{ color: 'var(--ink-muted-48)' }}>kcal</p>
-                    </div>
-                  </div>
-
-                  <div className={styles.resultMacros}>
-                    {[
-                      { label: 'Protein', value: aiResult.protein, unit: 'g', color: '#4CAF50' },
-                      { label: 'Carbs',   value: aiResult.carbs,   unit: 'g', color: '#FF9800' },
-                      { label: 'Fat',     value: aiResult.fat,     unit: 'g', color: '#E91E63' },
-                      { label: 'Fiber',   value: aiResult.fiber,   unit: 'g', color: '#9C27B0' },
-                    ].map(m => (
-                      <div key={m.label} className={styles.macroChip}>
-                        <span className="t-body-strong" style={{ color: m.color }}>{m.value}{m.unit}</span>
-                        <span className="t-fine">{m.label}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Itemized breakdown if multiple items detected */}
-                  {aiResult.breakdown && aiResult.breakdown.length > 0 && (
-                    <div style={{
-                      marginTop: 'var(--space-md)',
-                      paddingTop: 'var(--space-md)',
-                      borderTop: '1px solid var(--hairline)',
-                    }}>
-                      <p className="t-caption-strong" style={{ color: 'var(--ink-muted-48)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 'var(--space-xs)' }}>
-                        Component Breakdown
-                      </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {aiResult.breakdown.map((item, idx) => (
-                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
-                            <span>
-                              <span style={{ fontWeight: 500 }}>{item.item}</span>
-                              {item.portion && <span style={{ color: 'var(--ink-muted-48)', marginLeft: '6px', fontSize: '12px' }}>({item.portion})</span>}
-                            </span>
-                            <span style={{ color: 'var(--ink-muted-48)', fontSize: '12px', fontWeight: 500 }}>
-                              {item.calories} kcal · <span style={{ color: '#4CAF50' }}>{item.protein}g P</span>
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className={styles.resultActions}>
-                    <button id="ai-save-log-btn" onClick={saveAIEntry} disabled={loading} className="btn-primary">
-                      {loading ? 'Saving...' : '+ Add to Log'}
-                    </button>
-                    <button id="ai-retry-btn" onClick={() => setAiResult(null)} className="btn-secondary">
-                      Try Again
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── DATABASE MODE ── */}
-          {mode === 'database' && (
-            <div className={styles.modePanel}>
-              <h2 className="t-tagline" style={{ marginBottom: 'var(--space-md)' }}>Search Food Database</h2>
-              <p className="t-caption" style={{ color: 'var(--ink-muted-48)', marginBottom: 'var(--space-xl)' }}>
-                60+ foods pre-loaded including Indian staples
-              </p>
-              <input
-                id="food-search-input"
-                type="search"
-                className="input"
-                placeholder="Search: rice, chicken, dal, oats..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                style={{ marginBottom: 'var(--space-lg)' }}
+        {/* ── MODE 1: AI PARSER ── */}
+        {mode === 'ai' && (
+          <div className={styles.aiPanel}>
+            <form onSubmit={analyzeWithAI} className={styles.aiInputCard}>
+              <textarea
+                id="ai-description"
+                className={styles.aiTextarea}
+                placeholder="Describe your meal (e.g. 2 scoops whey with 300ml whole milk, or 200g chicken with 1 cup rice)"
+                value={aiText}
+                onChange={e => setAiText(e.target.value)}
+                rows={3}
               />
+              <div className={styles.aiActionsRow}>
+                <span className={styles.aiHint}>Natural language food reasoning</span>
+                <button
+                  id="ai-analyze-submit"
+                  type="submit"
+                  className="btn-primary"
+                  disabled={aiLoading || !aiText.trim()}
+                  style={{ minHeight: '38px', padding: '8px 18px', fontSize: '13px' }}
+                >
+                  <Sparkles size={14} strokeWidth={2.2} />
+                  <span>{aiLoading ? 'Calculating...' : 'Analyze'}</span>
+                </button>
+              </div>
+            </form>
 
-              {searchResults.length > 0 && !selectedFood && (
-                <div className={styles.searchResults}>
-                  {searchResults.map(food => (
-                    <button
-                      key={food.id}
-                      id={`food-result-${food.id}`}
-                      onClick={() => { setSelectedFood(food); setServingGrams(String(food.default_serving_g)) }}
-                      className={styles.foodResult}
-                    >
-                      <div>
-                        <p className="t-body-strong">{food.name}</p>
-                        <p className="t-caption" style={{ color: 'var(--ink-muted-48)' }}>{food.serving_description}</p>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <p className="t-caption-strong">{Math.round(food.calories_per_100g * food.default_serving_g / 100)} kcal</p>
-                        <p className="t-fine" style={{ color: 'var(--ink-muted-48)' }}>per serving</p>
-                      </div>
-                    </button>
-                  ))}
+            {/* Quick Gym Presets */}
+            <div className={styles.presetPresetsRow}>
+              <span className={styles.presetsTitle}>Post-Gym Staples</span>
+              <div className={styles.presetsScroll}>
+                {GYM_PRESETS.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setAiText(preset)
+                    }}
+                    className={styles.presetChip}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {aiError && (
+              <div style={{
+                padding: '12px 16px',
+                background: 'rgba(255, 69, 58, 0.1)',
+                border: '1px solid rgba(255, 69, 58, 0.25)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--macro-fat)',
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}>
+                <AlertCircle size={15} />
+                <span>{aiError}</span>
+              </div>
+            )}
+
+            {/* AI Result Card */}
+            {aiResult && (
+              <div className={`${styles.resultCard} animate-fade-up`}>
+                <div className={styles.resultHeader}>
+                  <div>
+                    <h3 className={styles.resultTitle}>{aiResult.name}</h3>
+                    <p className={styles.resultServing}>{aiResult.serving_description}</p>
+                  </div>
+                  <div>
+                    <p className={`${styles.resultCaloriesValue} tabular`}>{aiResult.calories}</p>
+                    <p className={styles.resultCaloriesUnit}>KCAL</p>
+                  </div>
                 </div>
-              )}
 
-              {selectedFood && (
-                <div className={`${styles.resultCard} animate-fade-up`}>
-                  <div className={styles.resultHeader}>
-                    <div>
-                      <h3 className="t-body-strong">{selectedFood.name}</h3>
-                      <p className="t-caption" style={{ color: 'var(--ink-muted-48)' }}>{selectedFood.serving_description}</p>
+                <div className={styles.resultMacrosGrid}>
+                  <div className={styles.macroChipBox}>
+                    <span className={`${styles.macroChipVal} tabular`} style={{ color: '#FFFFFF' }}>{aiResult.protein}g</span>
+                    <span className={styles.macroChipName}>Protein</span>
+                  </div>
+                  <div className={styles.macroChipBox}>
+                    <span className={`${styles.macroChipVal} tabular`} style={{ color: '#FFFFFF' }}>{aiResult.carbs}g</span>
+                    <span className={styles.macroChipName}>Carbs</span>
+                  </div>
+                  <div className={styles.macroChipBox}>
+                    <span className={`${styles.macroChipVal} tabular`} style={{ color: '#FFFFFF' }}>{aiResult.fat}g</span>
+                    <span className={styles.macroChipName}>Fat</span>
+                  </div>
+                  <div className={styles.macroChipBox}>
+                    <span className={`${styles.macroChipVal} tabular`} style={{ color: '#FFFFFF' }}>{aiResult.fiber}g</span>
+                    <span className={styles.macroChipName}>Fiber</span>
+                  </div>
+                </div>
+
+                {/* Itemized Breakdown */}
+                {aiResult.breakdown && aiResult.breakdown.length > 0 && (
+                  <div style={{
+                    marginTop: 'var(--space-md)',
+                    paddingTop: 'var(--space-md)',
+                    borderTop: '1px solid var(--hairline)',
+                    marginBottom: 'var(--space-md)',
+                  }}>
+                    <p className="t-fine" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-xs)' }}>
+                      Itemized Breakdown
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {aiResult.breakdown.map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                          <span>{item.item} <span style={{ color: 'var(--ink-muted-48)', fontSize: '11px' }}>({item.portion})</span></span>
+                          <span className="tabular" style={{ fontWeight: 600 }}>{item.calories} kcal · <span style={{ color: '#FFFFFF' }}>{item.protein}g P</span></span>
+                        </div>
+                      ))}
                     </div>
-                    <button onClick={() => setSelectedFood(null)} className="btn-secondary" style={{ fontSize: '13px', padding: '6px 14px' }}>
-                      Change
-                    </button>
                   </div>
+                )}
 
-                  <div className={styles.servingRow}>
-                    <label htmlFor="serving-grams" className="label">Serving (grams)</label>
-                    <input
-                      id="serving-grams"
-                      type="number"
-                      className="input-rect"
-                      value={servingGrams}
-                      onChange={e => setServingGrams(e.target.value)}
-                      min="1"
-                      style={{ width: '120px' }}
-                    />
-                    <span className="t-tagline" style={{ color: 'var(--primary)' }}>{dbCalories} kcal</span>
-                  </div>
-
-                  <div className={styles.resultMacros}>
-                    {[
-                      { label: 'Protein', value: Math.round(selectedFood.protein_per_100g * (parseFloat(servingGrams)||100) / 100), color: '#4CAF50' },
-                      { label: 'Carbs',   value: Math.round(selectedFood.carbs_per_100g * (parseFloat(servingGrams)||100) / 100),   color: '#FF9800' },
-                      { label: 'Fat',     value: Math.round(selectedFood.fat_per_100g * (parseFloat(servingGrams)||100) / 100),     color: '#E91E63' },
-                    ].map(m => (
-                      <div key={m.label} className={styles.macroChip}>
-                        <span className="t-body-strong" style={{ color: m.color }}>{m.value}g</span>
-                        <span className="t-fine">{m.label}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <button id="db-save-btn" onClick={saveDatabaseEntry} disabled={loading} className="btn-primary">
-                    {loading ? 'Saving...' : '+ Add to Log'}
+                <div style={{ display: 'flex', gap: 'var(--space-xs)' }}>
+                  <button
+                    id="ai-save-btn"
+                    onClick={saveAIEntry}
+                    disabled={loading}
+                    className="btn-primary"
+                    style={{ flex: 1 }}
+                  >
+                    <Plus size={16} strokeWidth={2.4} />
+                    <span>{loading ? 'Saving...' : 'Add to Today'}</span>
+                  </button>
+                  <button
+                    onClick={() => setAiResult(null)}
+                    className="btn-secondary"
+                  >
+                    Reset
                   </button>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
+        )}
 
-          {/* ── MANUAL MODE ── */}
-          {mode === 'manual' && (
-            <div className={styles.modePanel}>
-              <h2 className="t-tagline" style={{ marginBottom: 'var(--space-md)' }}>Enter Manually</h2>
-              <p className="t-caption" style={{ color: 'var(--ink-muted-48)', marginBottom: 'var(--space-xl)' }}>
-                Know the exact nutrition values? Enter them directly.
-              </p>
-              <form onSubmit={saveManualEntry} className={styles.manualForm}>
-                <div className={styles.field}>
-                  <label htmlFor="manual-name" className="label">Food Name *</label>
-                  <input id="manual-name" type="text" className="input-rect" placeholder="e.g. Protein shake" value={manualForm.name} onChange={e => setManualForm(f => ({ ...f, name: e.target.value }))} required />
+        {/* ── MODE 2: MANUAL ENTRY ── */}
+        {mode === 'manual' && (
+          <form onSubmit={saveManualEntry} className="card" style={{ maxWidth: '540px' }}>
+            <h2 className="t-tagline" style={{ marginBottom: 'var(--space-md)' }}>Direct Macro Entry</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+              <div>
+                <label className="label">Meal / Food Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Post-Workout Shake"
+                  value={manualForm.name}
+                  onChange={e => setManualForm({ ...manualForm, name: e.target.value })}
+                  className="input-rect"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-sm)' }}>
+                <div>
+                  <label className="label">Calories (kcal)</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="0"
+                    value={manualForm.calories}
+                    onChange={e => setManualForm({ ...manualForm, calories: e.target.value })}
+                    className="input-rect tabular"
+                  />
                 </div>
-                <div className={styles.gridRow}>
-                  <div className={styles.field}>
-                    <label htmlFor="manual-qty" className="label">Quantity (g)</label>
-                    <input id="manual-qty" type="number" className="input-rect" value={manualForm.quantity} onChange={e => setManualForm(f => ({ ...f, quantity: e.target.value }))} min="1" />
-                  </div>
-                  <div className={styles.field}>
-                    <label htmlFor="manual-cal" className="label">Calories (kcal) *</label>
-                    <input id="manual-cal" type="number" className="input-rect" placeholder="0" value={manualForm.calories} onChange={e => setManualForm(f => ({ ...f, calories: e.target.value }))} min="0" required />
-                  </div>
+                <div>
+                  <label className="label">Protein (g)</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={manualForm.protein}
+                    onChange={e => setManualForm({ ...manualForm, protein: e.target.value })}
+                    className="input-rect tabular"
+                  />
                 </div>
-                <div className={styles.gridRow}>
-                  <div className={styles.field}>
-                    <label htmlFor="manual-protein" className="label">Protein (g)</label>
-                    <input id="manual-protein" type="number" className="input-rect" placeholder="0" value={manualForm.protein} onChange={e => setManualForm(f => ({ ...f, protein: e.target.value }))} min="0" step="0.1" />
-                  </div>
-                  <div className={styles.field}>
-                    <label htmlFor="manual-carbs" className="label">Carbs (g)</label>
-                    <input id="manual-carbs" type="number" className="input-rect" placeholder="0" value={manualForm.carbs} onChange={e => setManualForm(f => ({ ...f, carbs: e.target.value }))} min="0" step="0.1" />
-                  </div>
+                <div>
+                  <label className="label">Carbs (g)</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={manualForm.carbs}
+                    onChange={e => setManualForm({ ...manualForm, carbs: e.target.value })}
+                    className="input-rect tabular"
+                  />
                 </div>
-                <div className={styles.gridRow}>
-                  <div className={styles.field}>
-                    <label htmlFor="manual-fat" className="label">Fat (g)</label>
-                    <input id="manual-fat" type="number" className="input-rect" placeholder="0" value={manualForm.fat} onChange={e => setManualForm(f => ({ ...f, fat: e.target.value }))} min="0" step="0.1" />
-                  </div>
-                  <div className={styles.field}>
-                    <label htmlFor="manual-fiber" className="label">Fiber (g)</label>
-                    <input id="manual-fiber" type="number" className="input-rect" placeholder="0" value={manualForm.fiber} onChange={e => setManualForm(f => ({ ...f, fiber: e.target.value }))} min="0" step="0.1" />
-                  </div>
+                <div>
+                  <label className="label">Fat (g)</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={manualForm.fat}
+                    onChange={e => setManualForm({ ...manualForm, fat: e.target.value })}
+                    className="input-rect tabular"
+                  />
                 </div>
-                <button id="manual-save-btn" type="submit" disabled={loading} className="btn-primary" style={{ marginTop: 'var(--space-md)' }}>
-                  {loading ? 'Saving...' : '+ Add to Log'}
-                </button>
-              </form>
+              </div>
+
+              <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', marginTop: 'var(--space-xs)' }}>
+                {loading ? 'Saving...' : 'Add Meal'}
+              </button>
             </div>
-          )}
-        </div>
-      </section>
+          </form>
+        )}
+
+        {/* ── MODE 3: FOODS CATALOG ── */}
+        {mode === 'database' && (
+          <div className="card" style={{ maxWidth: '540px', textAlign: 'center', padding: 'var(--space-xxl) var(--space-md)' }}>
+            <Search size={32} strokeWidth={1.8} color="var(--primary)" style={{ marginBottom: 'var(--space-sm)' }} />
+            <h2 className="t-tagline" style={{ marginBottom: 'var(--space-xs)' }}>Food Catalog & Custom Foods</h2>
+            <p className="t-caption" style={{ color: 'var(--ink-muted-80)', marginBottom: 'var(--space-lg)' }}>
+              Manage and save custom fitness staples in your library.
+            </p>
+            <Link href="/foods" className="btn-primary">
+              Open Foods Library
+            </Link>
+          </div>
+        )}
+      </div>
     </div>
   )
-}
-
-function capitalize(s: string) { return s.charAt(0).toUpperCase() + s.slice(1) }
-function getMealEmoji(type: string) {
-  return { breakfast: '🌅', lunch: '☀️', dinner: '🌙', snack: '🍎' }[type] || '🍽️'
 }

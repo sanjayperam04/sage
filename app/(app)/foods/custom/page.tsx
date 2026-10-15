@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { ArrowLeft, Plus } from 'lucide-react'
 
 export default function CustomFoodPage() {
   const [form, setForm] = useState({
@@ -19,7 +20,7 @@ export default function CustomFoodPage() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) setUserId(user.id)
     })
-  }, [])
+  }, [supabase])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -46,61 +47,129 @@ export default function CustomFoodPage() {
     setForm(prev => ({ ...prev, [key]: e.target.value }))
 
   return (
-    <div>
-      <section className="tile tile-dark">
-        <div className="tile-content">
-          <Link href="/foods" style={{ color: 'var(--primary-on-dark)', fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: 'var(--space-md)' }}>
-            ← Foods
-          </Link>
-          <h1 className="t-display-md" style={{ color: 'var(--on-dark)' }}>Create Custom Food</h1>
-          <p className="t-caption" style={{ color: 'var(--body-muted)', marginTop: 'var(--space-xs)' }}>
-            Values per 100g serving
+    <div style={{ minHeight: '100vh', paddingBottom: 'var(--space-xxl)' }}>
+      <div className="container" style={{ maxWidth: '640px' }}>
+        <header style={{ marginBottom: 'var(--space-lg)', paddingTop: 'var(--space-xs)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-xs)' }}>
+            <Link href="/foods" style={{ color: 'var(--ink-muted-80)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}>
+              <ArrowLeft size={14} /> Back
+            </Link>
+          </div>
+          <h1 className="t-display-md">Create Custom Food</h1>
+          <p className="t-caption" style={{ color: 'var(--ink-muted-80)' }}>
+            Nutritional density per 100g standard serving
           </p>
-        </div>
-      </section>
+        </header>
 
-      <section className="tile tile-parchment">
-        <div className="tile-content" style={{ maxWidth: '560px' }}>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
-              <label htmlFor="custom-food-name" className="label">Food Name *</label>
-              <input id="custom-food-name" type="text" className="input-rect" value={form.name} onChange={f('name')} required placeholder="e.g. Protein Bar" />
+        <form onSubmit={handleSubmit} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+          <div>
+            <label className="label">Food Name *</label>
+            <input
+              type="text"
+              required
+              className="input-rect"
+              placeholder="e.g. Greek Yogurt 0% Fat"
+              value={form.name}
+              onChange={f('name')}
+            />
+          </div>
+
+          <div>
+            <label className="label">Brand / Source (Optional)</label>
+            <input
+              type="text"
+              className="input-rect"
+              placeholder="e.g. Epigamia, Homemade"
+              value={form.brand}
+              onChange={f('brand')}
+            />
+          </div>
+
+          <div className="divider" />
+          <p className="t-fine" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Macros per 100g</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-sm)' }}>
+            <div>
+              <label className="label">Calories (kcal) *</label>
+              <input
+                type="number"
+                required
+                className="input-rect tabular"
+                placeholder="0"
+                value={form.calories}
+                onChange={f('calories')}
+              />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
-              <label htmlFor="custom-food-brand" className="label">Brand (optional)</label>
-              <input id="custom-food-brand" type="text" className="input-rect" value={form.brand} onChange={f('brand')} placeholder="e.g. MyProtein" />
+            <div>
+              <label className="label">Protein (g) *</label>
+              <input
+                type="number"
+                step="0.1"
+                required
+                className="input-rect tabular"
+                placeholder="0"
+                value={form.protein}
+                onChange={f('protein')}
+              />
             </div>
-
-            <hr className="divider" />
-            <p className="t-caption-strong" style={{ color: 'var(--ink-muted-48)' }}>NUTRITION PER 100G</p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
-              {[
-                { id: 'custom-calories', label: 'Calories (kcal) *', key: 'calories' as const },
-                { id: 'custom-protein', label: 'Protein (g)', key: 'protein' as const },
-                { id: 'custom-carbs', label: 'Carbs (g)', key: 'carbs' as const },
-                { id: 'custom-fat', label: 'Fat (g)', key: 'fat' as const },
-                { id: 'custom-fiber', label: 'Fiber (g)', key: 'fiber' as const },
-                { id: 'custom-serving', label: 'Default serving (g)', key: 'default_serving_g' as const },
-              ].map(({ id, label, key }) => (
-                <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
-                  <label htmlFor={id} className="label">{label}</label>
-                  <input id={id} type="number" className="input-rect" value={form[key]} onChange={f(key)} min="0" step="0.1" required={key === 'calories'} placeholder="0" />
-                </div>
-              ))}
+            <div>
+              <label className="label">Carbohydrates (g)</label>
+              <input
+                type="number"
+                step="0.1"
+                className="input-rect tabular"
+                placeholder="0"
+                value={form.carbs}
+                onChange={f('carbs')}
+              />
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
-              <label htmlFor="custom-serving-desc" className="label">Serving description (optional)</label>
-              <input id="custom-serving-desc" type="text" className="input-rect" value={form.serving_description} onChange={f('serving_description')} placeholder='e.g. "1 bar (60g)"' />
+            <div>
+              <label className="label">Fat (g)</label>
+              <input
+                type="number"
+                step="0.1"
+                className="input-rect tabular"
+                placeholder="0"
+                value={form.fat}
+                onChange={f('fat')}
+              />
             </div>
+          </div>
 
-            <button id="custom-food-save" type="submit" className="btn-primary" disabled={loading} style={{ marginTop: 'var(--space-sm)' }}>
-              {loading ? 'Saving...' : 'Save Food'}
-            </button>
-          </form>
-        </div>
-      </section>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-sm)' }}>
+            <div>
+              <label className="label">Default Serving (g)</label>
+              <input
+                type="number"
+                className="input-rect tabular"
+                placeholder="100"
+                value={form.default_serving_g}
+                onChange={f('default_serving_g')}
+              />
+            </div>
+            <div>
+              <label className="label">Portion Label</label>
+              <input
+                type="text"
+                className="input-rect"
+                placeholder="e.g. 1 cup, 1 scoop"
+                value={form.serving_description}
+                onChange={f('serving_description')}
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary"
+            style={{ width: '100%', marginTop: 'var(--space-xs)' }}
+          >
+            <Plus size={16} strokeWidth={2.4} />
+            <span>{loading ? 'Saving...' : 'Save to Food Catalog'}</span>
+          </button>
+        </form>
+      </div>
     </div>
   )
 }

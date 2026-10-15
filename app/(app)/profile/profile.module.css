@@ -1,20 +1,40 @@
 .page {
   min-height: 100vh;
-  padding-bottom: var(--space-xxxl);
+  padding-bottom: var(--space-xxl);
 }
 
 .twoCol {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
-  gap: var(--space-xxl);
+  gap: var(--space-lg);
   align-items: start;
 }
 
 @media (max-width: 860px) {
   .twoCol {
     grid-template-columns: 1fr;
-    gap: var(--space-xl);
+    gap: var(--space-md);
   }
+}
+
+.cardSection {
+  background: var(--canvas-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-xl);
+  padding: var(--space-lg);
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--on-dark);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: var(--space-md);
 }
 
 .form {
@@ -26,14 +46,14 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: 6px;
 }
 
 .goalGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-md);
-  margin-bottom: var(--space-sm);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
 }
 
 @media (max-width: 540px) {
@@ -42,44 +62,41 @@
   }
 }
 
-.weightInput {
+.weightInputRow {
   display: flex;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
   align-items: center;
-  margin-bottom: var(--space-lg);
+  margin-bottom: var(--space-md);
 }
 
 .weightList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.weightTrend {
-  margin-bottom: var(--space-sm);
+  gap: 6px;
 }
 
 .trendBadge {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-xxs);
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 500;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
 }
 
 .weightEntry {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-sm) var(--space-md);
-  background: var(--canvas-parchment);
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
   transition: background-color var(--motion-fast);
 }
 
 .weightEntry:hover {
-  background: var(--canvas-parchment-deep);
+  background: rgba(255, 255, 255, 0.06);
 }
