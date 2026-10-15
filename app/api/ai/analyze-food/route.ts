@@ -34,7 +34,7 @@ OUTPUT FORMAT (strict JSON):
 }`
 
     const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'qwen/qwen3.8-27b',
       response_format: { type: 'json_object' },
       temperature: 0.2,
       max_tokens: 400,

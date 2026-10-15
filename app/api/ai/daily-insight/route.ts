@@ -25,7 +25,7 @@ AVOID: Clichés, fluff, medical jargon, guilt.`
 Give me a brief, personalized insight about my day.`
 
     const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'qwen/qwen3.8-27b',
       temperature: 0.7,
       max_tokens: 150,
       messages: [
