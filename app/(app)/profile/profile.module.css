@@ -1,0 +1,85 @@
+.page {
+  min-height: 100vh;
+  padding-bottom: var(--space-xxxl);
+}
+
+.twoCol {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: var(--space-xxl);
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .twoCol {
+    grid-template-columns: 1fr;
+    gap: var(--space-xl);
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.goalGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+@media (max-width: 540px) {
+  .goalGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.weightInput {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-lg);
+}
+
+.weightList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.weightTrend {
+  margin-bottom: var(--space-sm);
+}
+
+.trendBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xxs);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.weightEntry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--canvas-parchment);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  transition: background-color var(--motion-fast);
+}
+
+.weightEntry:hover {
+  background: var(--canvas-parchment-deep);
+}
