@@ -17,6 +17,7 @@ interface AIResult {
   fiber: number
   serving_description: string
   confidence: string
+  breakdown?: { item: string; portion: string; calories: number; protein: number }[]
 }
 
 export default function LogPage() {
@@ -37,6 +38,7 @@ export default function LogPage() {
   const [aiText, setAiText] = useState('')
   const [aiResult, setAiResult] = useState<AIResult | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
 
   // Manual mode
   const [manualForm, setManualForm] = useState({
@@ -81,6 +83,7 @@ export default function LogPage() {
     if (!aiText.trim()) return
     setAiLoading(true)
     setAiResult(null)
+    setAiError(null)
     try {
       const res = await fetch('/api/ai/analyze-food', {
         method: 'POST',
@@ -88,8 +91,14 @@ export default function LogPage() {
         body: JSON.stringify({ description: aiText, mealType }),
       })
       const data = await res.json()
-      if (data.result) setAiResult(data.result)
-    } catch { /* silent */ }
+      if (data.error) {
+        setAiError(data.error)
+      } else if (data.result) {
+        setAiResult(data.result)
+      }
+    } catch {
+      setAiError('Could not connect to AI service. Please try again.')
+    }
     setAiLoading(false)
   }
 
@@ -253,10 +262,27 @@ export default function LogPage() {
                 </button>
               </form>
 
+              {aiError && (
+                <div style={{
+                  padding: 'var(--space-md) var(--space-lg)',
+                  background: 'rgba(255, 59, 48, 0.08)',
+                  border: '1px solid rgba(255, 59, 48, 0.25)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--accent-red)',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-sm)',
+                }}>
+                  <span>⚠️</span>
+                  <span>{aiError}</span>
+                </div>
+              )}
+
               {aiLoading && (
                 <div className={styles.aiLoading}>
                   <div className={styles.aiLoadingDot} /><div className={styles.aiLoadingDot} /><div className={styles.aiLoadingDot} />
-                  <span className="t-caption" style={{ color: 'var(--ink-muted-48)' }}>Groq AI is analyzing your meal...</span>
+                  <span className="t-caption" style={{ color: 'var(--ink-muted-48)' }}>Sage AI is calculating precise macronutrients...</span>
                 </div>
               )}
 
@@ -293,6 +319,32 @@ export default function LogPage() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Itemized breakdown if multiple items detected */}
+                  {aiResult.breakdown && aiResult.breakdown.length > 0 && (
+                    <div style={{
+                      marginTop: 'var(--space-md)',
+                      paddingTop: 'var(--space-md)',
+                      borderTop: '1px solid var(--hairline)',
+                    }}>
+                      <p className="t-caption-strong" style={{ color: 'var(--ink-muted-48)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 'var(--space-xs)' }}>
+                        Component Breakdown
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {aiResult.breakdown.map((item, idx) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                            <span>
+                              <span style={{ fontWeight: 500 }}>{item.item}</span>
+                              {item.portion && <span style={{ color: 'var(--ink-muted-48)', marginLeft: '6px', fontSize: '12px' }}>({item.portion})</span>}
+                            </span>
+                            <span style={{ color: 'var(--ink-muted-48)', fontSize: '12px', fontWeight: 500 }}>
+                              {item.calories} kcal · <span style={{ color: '#4CAF50' }}>{item.protein}g P</span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className={styles.resultActions}>
                     <button id="ai-save-log-btn" onClick={saveAIEntry} disabled={loading} className="btn-primary">
