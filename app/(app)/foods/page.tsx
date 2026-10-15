@@ -43,8 +43,24 @@ export default async function FoodsPage() {
             </div>
           )}
 
-          <h2 className="t-tagline" style={{ marginBottom: 'var(--space-lg)' }}>Food Database</h2>
-          <FoodGrid foods={globalFoods} />
+          {globalFoods.length > 0 ? (
+            <>
+              <h2 className="t-tagline" style={{ marginBottom: 'var(--space-lg)' }}>Food Database</h2>
+              <FoodGrid foods={globalFoods} />
+            </>
+          ) : customFoods.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 'var(--space-xxl) 0' }}>
+              <div style={{ fontSize: '40px', marginBottom: 'var(--space-md)' }}>🌿</div>
+              <h2 className="t-tagline" style={{ marginBottom: 'var(--space-xs)' }}>AI-Powered Nutrition</h2>
+              <p className="t-caption" style={{ color: 'var(--ink-muted-48)', maxWidth: '420px', margin: '0 auto var(--space-lg)' }}>
+                Sage dynamically analyzes any meal, dish, or home-cooked recipe using Groq AI. You don&apos;t need a static food catalog.
+              </p>
+              <div style={{ display: 'flex', gap: 'var(--space-sm)', justifyContent: 'center' }}>
+                <Link href="/log" className="btn-primary">Log Meal with AI</Link>
+                <Link href="/foods/custom" className="btn-secondary">Add Custom Food</Link>
+              </div>
+            </div>
+          ) : null}
         </div>
       </section>
     </div>
