@@ -1,6 +1,6 @@
-# NutriTrack — Personal Calorie & Macro Tracker
+# Sage — Intelligent Nutrition & Macro Architecture
 
-An intelligent, distraction-free nutrition and macro tracking application engineered for gym-goers, inspired by Apple's Human Interface Guidelines and editorial aesthetic. Built to replace expensive commercial subscription apps like HealthifyMe.
+An intelligent, distraction-free nutrition and macro tracking application engineered for gym-goers and athletes, inspired by Apple's Human Interface Guidelines and editorial aesthetic. Built as a sovereign, private alternative to overpriced subscription trackers like HealthifyMe.
 
 ---
 

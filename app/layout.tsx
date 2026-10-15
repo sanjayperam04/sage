@@ -2,15 +2,15 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'NutriTrack — Personal Calorie & Macro Tracker',
-  description: 'Track calories, macros, water, and weight. Powered by Groq AI for instant food analysis. Your personal nutrition companion for gym-goers.',
-  keywords: ['calorie tracker', 'macro tracker', 'nutrition', 'gym', 'health', 'diet'],
-  authors: [{ name: 'NutriTrack' }],
+  title: 'Sage — Intelligent Nutrition & Macro Architecture',
+  description: 'Precision nutrition, macro tracking, and real-time food intelligence for high-performance athletes. Powered by Groq AI and crafted with Apple design principles.',
+  keywords: ['Sage', 'nutrition', 'calorie tracker', 'macro tracker', 'gym nutrition', 'fitness intelligence', 'high performance'],
+  authors: [{ name: 'Sage' }],
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'NutriTrack',
+    title: 'Sage',
   },
 }
 

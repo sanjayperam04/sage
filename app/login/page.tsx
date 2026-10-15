@@ -59,15 +59,20 @@ export default function LoginPage() {
         {/* Logo / Brand */}
         <div className={styles.brand}>
           <div className={styles.logoMark}>
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <circle cx="16" cy="16" r="16" fill="#0066cc"/>
-              <path d="M16 8C11.582 8 8 11.582 8 16C8 20.418 11.582 24 16 24C20.418 24 24 20.418 24 16" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-              <circle cx="20" cy="10" r="2.5" fill="white"/>
-              <path d="M12 16H20M16 12V20" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+            <svg width="40" height="40" viewBox="0 0 32 32" fill="none">
+              <defs>
+                <linearGradient id="sageGradLg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#30D158" />
+                  <stop offset="1" stopColor="#107C41" />
+                </linearGradient>
+              </defs>
+              <circle cx="16" cy="16" r="16" fill="url(#sageGradLg)" />
+              <path d="M16 6.5C16 6.5 24 11 24 18.5C24 22.642 20.642 26 16.5 26C12.358 26 9 22.642 9 18.5C9 11 16 6.5 16 6.5Z" fill="white" fillOpacity="0.95" />
+              <path d="M16 10.5V22.5M16 16.5L19.5 13M16 19L12.5 15.5" stroke="#107C41" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h1 className={styles.brandName}>NutriTrack</h1>
-          <p className={styles.brandTagline}>Your personal nutrition companion</p>
+          <h1 className={styles.brandName}>Sage</h1>
+          <p className={styles.brandTagline}>Intelligent Nutrition & Macro Architecture</p>
         </div>
 
         {/* Auth card */}

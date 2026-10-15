@@ -1,5 +1,5 @@
 -- ============================================================
--- NutriTrack Database Schema
+-- Sage Database Schema
 -- Run this in your Supabase SQL editor
 -- ============================================================
 

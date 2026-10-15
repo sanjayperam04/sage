@@ -7,12 +7,12 @@ export async function POST(req: NextRequest) {
   try {
     const { logs, totals, goals, waterGlasses } = await req.json()
 
-    const systemPrompt = `You are a supportive, knowledgeable nutrition coach. Analyze a user's daily food log and provide a brief, encouraging insight.
+    const systemPrompt = `You are Sage, a mindful and elite athletic nutrition intelligence. Analyze the user's daily fuel and recovery metrics.
 
-TONE: Friendly, motivating, specific. Like a personal trainer who knows nutrition.
-LENGTH: 2-3 sentences max. Be concise.
-FOCUS: Highlight what they did well, and give ONE specific actionable tip.
-AVOID: Generic advice, medical claims, guilt-tripping.`
+TONE: Calm, perceptive, motivating, stoic. High signal-to-noise ratio, like an elite performance coach.
+LENGTH: 2 sentences max. Direct and impactful.
+FOCUS: One sharp, positive observation on their macro execution, and one precise actionable tip for tomorrow's performance.
+AVOID: Clichés, fluff, medical jargon, guilt.`
 
     const userMessage = `Today's nutrition summary:
 - Calories: ${Math.round(totals.calories)} / ${goals.calories} goal (${Math.round((totals.calories/goals.calories)*100)}%)

@@ -29,13 +29,19 @@ export default function GlobalNav() {
       <div className={styles.inner}>
         {/* Logo */}
         <Link href="/dashboard" className={styles.logo} id="nav-logo">
-          <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="16" r="16" fill="#0066cc"/>
-            <path d="M16 8C11.582 8 8 11.582 8 16C8 20.418 11.582 24 16 24C20.418 24 24 20.418 24 16" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-            <circle cx="20" cy="10" r="2.5" fill="white"/>
-            <path d="M12 16H20M16 12V20" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+          <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+            <defs>
+              <linearGradient id="sageGrad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#30D158" />
+                <stop offset="1" stopColor="#107C41" />
+              </linearGradient>
+            </defs>
+            <circle cx="16" cy="16" r="16" fill="url(#sageGrad)" />
+            {/* Minimalist Sage Leaf & Precision Ring */}
+            <path d="M16 7C16 7 23 11 23 18C23 21.866 19.866 25 16 25C12.134 25 9 21.866 9 18C9 11 16 7 16 7Z" fill="white" fillOpacity="0.95" />
+            <path d="M16 11V22M16 16L19 13M16 18L13 15" stroke="#107C41" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <span>NutriTrack</span>
+          <span style={{ fontWeight: 600, letterSpacing: '-0.02em', fontSize: '15px' }}>Sage</span>
         </Link>
 
         {/* Center links */}

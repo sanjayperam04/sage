@@ -299,7 +299,7 @@ export default function DashboardClient({ profile, todayLogs, totals, waterGlass
       <footer className={styles.footer}>
         <div className="container">
           <p className="t-fine" style={{ color: 'var(--ink-muted-48)' }}>
-            NutriTrack · Powered by Groq AI · Data stored securely in Supabase
+            Sage · Intelligent Nutrition Architecture · Powered by Groq AI
           </p>
         </div>
       </footer>
