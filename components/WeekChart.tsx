@@ -1,13 +1,14 @@
 'use client'
 
+import React from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, Cell } from 'recharts'
 
-interface Props {
+export interface WeekChartProps {
   data: { date: string; label: string; calories: number; protein: number }[]
   calorieGoal: number
 }
 
-export default function WeekChart({ data, calorieGoal }: Props) {
+export function WeekChart({ data, calorieGoal }: WeekChartProps): React.JSX.Element {
   const today = new Date().toISOString().split('T')[0]
 
   return (
@@ -84,3 +85,5 @@ export default function WeekChart({ data, calorieGoal }: Props) {
     </div>
   )
 }
+
+export default WeekChart

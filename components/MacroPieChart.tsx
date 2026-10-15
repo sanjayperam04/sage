@@ -1,8 +1,9 @@
 'use client'
 
+import React from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 
-interface Props {
+export interface MacroPieChartProps {
   protein: number
   carbs: number
   fat: number
@@ -10,7 +11,7 @@ interface Props {
 
 const COLORS = ['#4CAF50', '#FF9800', '#E91E63']
 
-export default function MacroPieChart({ protein, carbs, fat }: Props) {
+export function MacroPieChart({ protein, carbs, fat }: MacroPieChartProps): React.JSX.Element {
   const total = protein + carbs + fat
   if (total < 1) {
     return (
@@ -51,3 +52,5 @@ export default function MacroPieChart({ protein, carbs, fat }: Props) {
     </div>
   )
 }
+
+export default MacroPieChart

@@ -3,11 +3,20 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile, FoodLog } from '@/lib/types'
-import MacroPieChart from '@/components/MacroPieChart'
-import WeekChart from '@/components/WeekChart'
 import styles from './dashboard.module.css'
+
+const MacroPieChart = dynamic(() => import('@/components/MacroPieChart'), {
+  ssr: false,
+  loading: () => <div style={{ height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-muted-48)', fontSize: '13px' }}>Loading chart...</div>,
+})
+
+const WeekChart = dynamic(() => import('@/components/WeekChart'), {
+  ssr: false,
+  loading: () => <div style={{ height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--body-muted)', fontSize: '13px' }}>Loading chart...</div>,
+})
 
 interface Props {
   profile: Profile
